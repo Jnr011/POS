@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import API from '../services/api';
+import { SaleRepository } from '../db/repository';
 
 export function useSales() {
   const [sales, setSales] = useState([]);
@@ -8,8 +8,8 @@ export function useSales() {
   const fetchSales = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await API.get('/sales');
-      setSales(res.data.sales || []);
+      const data = await SaleRepository.getAll();
+      setSales(data);
     } catch (err) {
       console.error('Error fetching sales:', err);
     } finally {
@@ -20,9 +20,9 @@ export function useSales() {
   useEffect(() => { fetchSales(); }, [fetchSales]);
 
   const createSale = async (productId, quantity) => {
-    const res = await API.post('/sales', { product_id: productId, quantity });
+    const result = await SaleRepository.add({ product_id: productId, quantity });
     await fetchSales();
-    return res.data;
+    return result;
   };
 
   const refetch = fetchSales;

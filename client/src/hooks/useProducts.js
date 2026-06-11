@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import API from '../services/api';
+import { ProductRepository } from '../db/repository';
 
 export function useProducts() {
   const [products, setProducts] = useState([]);
@@ -9,8 +9,8 @@ export function useProducts() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await API.get('/inventory');
-      setProducts(res.data.products || []);
+      const data = await ProductRepository.getAll();
+      setProducts(data);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch products');
@@ -22,19 +22,19 @@ export function useProducts() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const addProduct = async (data) => {
-    const res = await API.post('/inventory', data);
+    const result = await ProductRepository.add(data);
     await fetchProducts();
-    return res.data;
+    return result;
   };
 
   const updateProduct = async (id, data) => {
-    const res = await API.put(`/inventory/${id}`, data);
+    const result = await ProductRepository.update(id, data);
     await fetchProducts();
-    return res.data;
+    return result;
   };
 
   const deleteProduct = async (id) => {
-    await API.delete(`/inventory/${id}`);
+    await ProductRepository.delete(id);
     await fetchProducts();
   };
 
