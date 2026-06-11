@@ -269,7 +269,6 @@ function Inventory() {
               name="expiry_date"
               value={formData.expiry_date}
               onChange={handleInputChange}
-              required
             />
             <button type="submit">{editingId ? 'Update' : 'Add'} Product</button>
             {editingId && (

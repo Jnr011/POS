@@ -66,7 +66,27 @@ function Sales() {
   );
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  if (loading) return <div className="sales">Loading...</div>;
+  if (loading) return (
+    <div className="sales">
+      <h1>Sales</h1>
+      <div className="sales-container">
+        <div className="products-list">
+          <h2>Available Products</h2>
+          <div className="products-grid">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="skeleton-card">
+                <div className="skeleton skeleton-text long" />
+                <div className="skeleton skeleton-text short" />
+                <div className="skeleton skeleton-text short" />
+                <div className="skeleton skeleton-text" />
+                <div className="skeleton skeleton-button" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="sales">

@@ -26,8 +26,8 @@ exports.createProduct = async (req, res) => {
     try {
         const { name, category, price, stock_quantity, expiry_date } = req.body;
 
-        if (!name || !category || !price || !stock_quantity || !expiry_date) {
-            return res.status(400).json({ message: 'All fields are required' });
+        if (!name || !category || !price || !stock_quantity) {
+            return res.status(400).json({ message: 'Name, category, price, and stock quantity are required' });
         }
 
         const product = await Product.create({

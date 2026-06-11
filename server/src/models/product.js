@@ -21,7 +21,7 @@ const Product = sequelize.define('Product', {
     },
     expiry_date: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true
     }
 });
 
