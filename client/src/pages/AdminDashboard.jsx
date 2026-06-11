@@ -1,86 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import API from '../services/api';
+import React from 'react';
 import { useToast } from '../components/Toast';
+import { useReports } from '../hooks/useReports';
 import '../styles/Dashboard.css';
 
 function AdminDashboard() {
   const { addToast } = useToast();
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    lowStockCount: 0,
-    totalInventoryValue: 0,
-    totalSalesToday: 0,
-    totalUsers: 0,
-    totalRevenue: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const inventoryRes = await API.get('/reports/inventory/status');
-
-        setStats(prev => ({
-          ...prev,
-          totalProducts: inventoryRes.data.totalProducts || 0,
-          lowStockCount: inventoryRes.data.lowStockProducts || 0,
-          totalInventoryValue: inventoryRes.data.totalValue || 0,
-          totalRevenue: inventoryRes.data.totalRevenue || 0,
-          totalUsers: inventoryRes.data.totalUsers || 0
-        }));
-      } catch (error) {
-        console.error('Error fetching admin dashboard stats:', error);
-        setError('Failed to load dashboard data. Make sure the server is running.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const { reports, loading } = useReports();
+  const inv = reports.inventory;
 
   if (loading) return <div className="dashboard"><p>Loading admin dashboard...</p></div>;
 
   return (
     <div className="dashboard">
       <h1>📊 Admin Dashboard</h1>
-      {error && <div className="error-message">{error}</div>}
-      
       <div className="stats-grid">
         <div className="stat-card admin-card">
           <h3>📦 Total Products</h3>
-          <p className="stat-value">{stats.totalProducts}</p>
+          <p className="stat-value">{inv?.totalProducts || 0}</p>
           <span className="stat-label">Managed</span>
         </div>
 
         <div className="stat-card warning-card">
           <h3>⚠️ Low Stock Alert</h3>
-          <p className="stat-value">{stats.lowStockCount}</p>
+          <p className="stat-value">{inv?.lowStockProducts || 0}</p>
           <span className="stat-label">Items below threshold</span>
         </div>
 
         <div className="stat-card">
           <h3>💰 Inventory Value</h3>
-          <p className="stat-value">GHS {stats.totalInventoryValue.toFixed(2)}</p>
+          <p className="stat-value">GHS {(inv?.totalValue || 0).toFixed(2)}</p>
           <span className="stat-label">Total stock value</span>
         </div>
 
         <div className="stat-card">
           <h3>👥 Total Users</h3>
-          <p className="stat-value">{stats.totalUsers}</p>
+          <p className="stat-value">{inv?.totalUsers || 0}</p>
           <span className="stat-label">Active users in system</span>
         </div>
 
         <div className="stat-card success-card">
           <h3>💵 Total Revenue</h3>
-          <p className="stat-value">GHS {stats.totalRevenue.toFixed(2)}</p>
+          <p className="stat-value">GHS {(inv?.totalRevenue || 0).toFixed(2)}</p>
           <span className="stat-label">All-time sales</span>
         </div>
 
         <div className="stat-card">
           <h3>📈 Today's Sales</h3>
-          <p className="stat-value">GHS {stats.totalSalesToday.toFixed(2)}</p>
+          <p className="stat-value">GHS {(inv?.totalSalesToday || 0).toFixed(2)}</p>
           <span className="stat-label">Today's revenue</span>
         </div>
       </div>

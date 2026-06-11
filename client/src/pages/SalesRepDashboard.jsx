@@ -1,90 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import API from '../services/api';
+import React from 'react';
+import { useSales } from '../hooks/useSales';
+import { useProducts } from '../hooks/useProducts';
+import { useAuthStore } from '../store/authStore';
 import '../styles/Dashboard.css';
 
 function SalesRepDashboard() {
-  const [stats, setStats] = useState({
-    todaysSales: 0,
-    salesCount: 0,
-    productsAvailable: 0,
-    myCommission: 0
-  });
-  const [recentSales, setRecentSales] = useState([]);
-  const [productMap, setProductMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const user = useAuthStore((state) => state.user);
+  const { sales, loading: salesLoading } = useSales();
+  const { products, loading: productsLoading } = useProducts();
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const [salesRes, inventoryRes] = await Promise.all([
-          API.get('/sales'),
-          API.get('/inventory')
-        ]);
+  const loading = salesLoading || productsLoading;
 
-        const allSales = salesRes.data.sales || [];
-        const products = inventoryRes.data.products || [];
-        const map = {};
-        products.forEach(p => { map[p.id] = p.name; });
-        setProductMap(map);
+  const productMap = {};
+  products.forEach(p => { productMap[p.id] = p.name; });
 
-        // Filter sales for this user
-        const mySales = allSales.filter(sale => sale.user_id === user.id);
+  const mySales = sales.filter(sale => sale.user_id === user?.id);
+  const today = new Date().toISOString().split('T')[0];
+  const todaysSales = mySales.filter(sale =>
+    sale.date?.includes(today)
+  ).reduce((sum, sale) => sum + parseFloat(sale.total_price || 0), 0);
 
-        const today = new Date().toISOString().split('T')[0];
-        const todaysSales = mySales.filter(sale =>
-          sale.date?.includes(today)
-        ).reduce((sum, sale) => sum + parseFloat(sale.total_price || 0), 0);
-
-        setStats({
-          todaysSales,
-          salesCount: mySales.length,
-          productsAvailable: products.length,
-          myCommission: todaysSales * 0.05
-        });
-
-        setRecentSales(mySales.slice(-5).reverse());
-      } catch (error) {
-        console.error('Error fetching sales rep dashboard:', error);
-        setError('Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const recentSales = mySales.slice(-5).reverse();
 
   if (loading) return <div className="dashboard"><p>Loading your dashboard...</p></div>;
 
   return (
     <div className="dashboard">
       <h1>💼 Welcome, Sales Representative</h1>
-      {error && <div className="error-message">{error}</div>}
 
       <div className="stats-grid">
         <div className="stat-card sales-card">
           <h3>📊 Today's Sales</h3>
-          <p className="stat-value">GHS {stats.todaysSales.toFixed(2)}</p>
+          <p className="stat-value">GHS {todaysSales.toFixed(2)}</p>
           <span className="stat-label">Your earnings today</span>
         </div>
 
         <div className="stat-card">
           <h3>🔢 Sales Transactions</h3>
-          <p className="stat-value">{stats.salesCount}</p>
+          <p className="stat-value">{mySales.length}</p>
           <span className="stat-label">Total transactions</span>
         </div>
 
         <div className="stat-card">
           <h3>📦 Products Available</h3>
-          <p className="stat-value">{stats.productsAvailable}</p>
+          <p className="stat-value">{products.length}</p>
           <span className="stat-label">Ready to sell</span>
         </div>
 
         <div className="stat-card success-card">
           <h3>💰 Estimated Commission</h3>
-          <p className="stat-value">GHS {stats.myCommission.toFixed(2)}</p>
+          <p className="stat-value">GHS {(todaysSales * 0.05).toFixed(2)}</p>
           <span className="stat-label">5% on sales</span>
         </div>
       </div>

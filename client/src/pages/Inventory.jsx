@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import API from '../services/api';
 import { useToast } from '../components/Toast';
+import { useProducts } from '../hooks/useProducts';
 import '../styles/Inventory.css';
 
 function Inventory() {
   const { addToast } = useToast();
-  const [products, setProducts] = useState([]);
+  const { products, loading, addProduct, updateProduct, deleteProduct, refetch } = useProducts();
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -14,28 +15,12 @@ function Inventory() {
     expiry_date: ''
   });
   const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [csvFile, setCsvFile] = useState(null);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState('');
   const [csvPreview, setCsvPreview] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await API.get('/inventory');
-      setProducts(response.data.products);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -46,13 +31,12 @@ function Inventory() {
     e.preventDefault();
     try {
       if (editingId) {
-        await API.put(`/inventory/${editingId}`, formData);
+        await updateProduct(editingId, formData);
         setEditingId(null);
       } else {
-        await API.post('/inventory', formData);
+        await addProduct(formData);
       }
       setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
-      fetchProducts();
     } catch (error) {
       console.error('Error saving product:', error);
       addToast('Error saving product', 'error');
@@ -73,8 +57,7 @@ function Inventory() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await API.delete(`/inventory/${id}`);
-        fetchProducts();
+        await deleteProduct(id);
       } catch (error) {
         console.error('Error deleting product:', error);
         addToast('Error deleting product', 'error');
@@ -214,7 +197,7 @@ function Inventory() {
       setCsvPreview([]);
       setShowPreview(false);
       document.getElementById('csv-file-input').value = '';
-      fetchProducts();
+      refetch();
     } catch (error) {
       setCsvError(error.response?.data?.message || 'Error importing products. Please try again.');
     } finally {

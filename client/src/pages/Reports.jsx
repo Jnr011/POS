@@ -1,54 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import API from '../services/api';
+import React, { useState } from 'react';
+import { useReports } from '../hooks/useReports';
 import '../styles/Reports.css';
 
 function Reports() {
-  const [reports, setReports] = useState({
-    daily: [],
-    weekly: [],
-    monthly: [],
-    topProducts: [],
-    inventory: {}
-  });
-  const [productMap, setProductMap] = useState({});
+  const { reports, getProductName, loading } = useReports();
   const [activeTab, setActiveTab] = useState('daily');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const fetchReports = async () => {
-    try {
-      const [daily, weekly, monthly, topProducts, inventory, productsRes] = await Promise.all([
-        API.get('/reports/sales/daily'),
-        API.get('/reports/sales/weekly'),
-        API.get('/reports/sales/monthly'),
-        API.get('/reports/top-products'),
-        API.get('/reports/inventory/status'),
-        API.get('/inventory')
-      ]);
-
-      const products = productsRes.data.products || [];
-      const map = {};
-      products.forEach(p => { map[p.id] = p.name; });
-      setProductMap(map);
-
-      setReports({
-        daily: daily.data.dailySales || [],
-        weekly: weekly.data.weeklySales || [],
-        monthly: monthly.data.monthlySales || [],
-        topProducts: topProducts.data.topProducts || [],
-        inventory: inventory.data || {}
-      });
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getProductName = (id) => productMap[id] || `Product #${id}`;
 
   if (loading) return <div className="reports">Loading...</div>;
 

@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import './App.css';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import { ToastProvider } from './components/Toast';
+import { useAuthStore } from './store/authStore';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
 import SalesRepDashboard from './pages/SalesRepDashboard';
@@ -14,26 +15,8 @@ import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [user, setUser] = useState(null);
+  const { isAuthenticated, user, logout } = useAuthStore();
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    setIsAuthenticated(!!token);
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, [isAuthenticated]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  // Redirect to appropriate dashboard based on role
   const DashboardRoute = () => {
     if (!isAuthenticated) return <Navigate to="/login" />;
     return user?.role === 'admin' ? <AdminDashboard /> : <SalesRepDashboard />;
@@ -42,14 +25,14 @@ function App() {
   return (
     <ToastProvider>
       <div className="App">
-        {isAuthenticated && <Navbar onLogout={handleLogout} />}
+        {isAuthenticated && <Navbar onLogout={logout} />}
         <div className="app-content">
           {isAuthenticated && <Sidebar userRole={user?.role} />}
           <div className="main-content">
             <Routes>
             <Route 
               path="/login" 
-              element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login setIsAuthenticated={setIsAuthenticated} />}
+              element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />}
             />
             <Route 
               path="/register" 

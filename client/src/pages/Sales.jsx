@@ -1,48 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import API from '../services/api';
 import { useToast } from '../components/Toast';
+import { useProducts } from '../hooks/useProducts';
+import { useCartStore } from '../store/cartStore';
 import '../styles/Sales.css';
 
 function Sales() {
   const { addToast } = useToast();
-  const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading, refetch } = useProducts();
+  const { items: cart, addItem, removeItem, clearCart } = useCartStore();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await API.get('/inventory');
-        setProducts(response.data.products);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
-  const addToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id);
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-  };
-
-  const removeFromCart = (productId) => {
-    setCart(cart.filter(item => item.id !== productId));
-  };
 
   const handleCheckout = async () => {
     try {
@@ -50,9 +19,8 @@ function Sales() {
         await API.post('/sales', { product_id: item.id, quantity: item.quantity });
       }
       addToast('Sale completed successfully!', 'success');
-      setCart([]);
-      const response = await API.get('/inventory');
-      setProducts(response.data.products);
+      clearCart();
+      refetch();
     } catch (error) {
       console.error('Error processing sale:', error);
       addToast(error.response?.data?.message || 'Error processing sale', 'error');
@@ -64,7 +32,7 @@ function Sales() {
     p.name.toLowerCase().includes(search.toLowerCase()) &&
     (!categoryFilter || p.category === categoryFilter)
   );
-  const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalAmount = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
 
   if (loading) return (
     <div className="sales">
@@ -122,7 +90,7 @@ function Sales() {
                 <p>Price: ₵{product.price}</p>
                 <p>Stock: {product.stock_quantity}</p>
                 <button
-                  onClick={() => addToCart(product)}
+                  onClick={() => addItem(product)}
                   disabled={product.stock_quantity === 0}
                 >
                   Add to Cart
@@ -142,7 +110,7 @@ function Sales() {
                   <span>{item.name}</span>
                   <span>x{item.quantity}</span>
                   <span>₵{(item.price * item.quantity).toFixed(2)}</span>
-                  <button onClick={() => removeFromCart(item.id)}>Remove</button>
+                  <button onClick={() => removeItem(item.id)}>Remove</button>
                 </div>
               ))}
               <div className="cart-total">
