@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import { useToast } from '../components/Toast';
 import '../styles/Inventory.css';
 
 function Inventory() {
+  const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -53,7 +55,7 @@ function Inventory() {
       fetchProducts();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product');
+      addToast('Error saving product', 'error');
     }
   };
 
@@ -75,7 +77,7 @@ function Inventory() {
         fetchProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
-        alert('Error deleting product');
+        addToast('Error deleting product', 'error');
       }
     }
   };
@@ -207,14 +209,12 @@ function Inventory() {
 
       const response = await API.post('/inventory/batch-import', { products: csvPreview });
 
-      setCsvSuccess(`✅ Successfully imported ${response.data.importedCount} products!`);
+      addToast(`Successfully imported ${response.data.importedCount} products!`, 'success');
       setCsvFile(null);
       setCsvPreview([]);
       setShowPreview(false);
       document.getElementById('csv-file-input').value = '';
       fetchProducts();
-      
-      setTimeout(() => setCsvSuccess(''), 5000);
     } catch (error) {
       setCsvError(error.response?.data?.message || 'Error importing products. Please try again.');
     } finally {

@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import { useToast } from '../components/Toast';
 import '../styles/Sales.css';
 
 function Sales() {
+  const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,13 +49,13 @@ function Sales() {
       for (const item of cart) {
         await API.post('/sales', { product_id: item.id, quantity: item.quantity });
       }
-      alert('Sale completed successfully!');
+      addToast('Sale completed successfully!', 'success');
       setCart([]);
       const response = await API.get('/inventory');
       setProducts(response.data.products);
     } catch (error) {
       console.error('Error processing sale:', error);
-      alert('Error processing sale');
+      addToast(error.response?.data?.message || 'Error processing sale', 'error');
     }
   };
 

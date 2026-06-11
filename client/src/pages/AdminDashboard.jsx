@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import { useToast } from '../components/Toast';
 import '../styles/Dashboard.css';
 
 function AdminDashboard() {
+  const { addToast } = useToast();
   const [stats, setStats] = useState({
     totalProducts: 0,
     lowStockCount: 0,
@@ -106,7 +108,7 @@ function AdminDashboard() {
             <button 
               onClick={() => {
                 navigator.clipboard.writeText('ADMIN2024');
-                alert('Code copied!');
+                addToast('Registration code copied!', 'success');
               }}
               className="copy-btn"
             >

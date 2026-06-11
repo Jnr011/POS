@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import { ToastProvider } from './components/Toast';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
 import SalesRepDashboard from './pages/SalesRepDashboard';
@@ -39,12 +40,13 @@ function App() {
   };
 
   return (
-    <div className="App">
-      {isAuthenticated && <Navbar onLogout={handleLogout} />}
-      <div className="app-content">
-        {isAuthenticated && <Sidebar userRole={user?.role} />}
-        <div className="main-content">
-          <Routes>
+    <ToastProvider>
+      <div className="App">
+        {isAuthenticated && <Navbar onLogout={handleLogout} />}
+        <div className="app-content">
+          {isAuthenticated && <Sidebar userRole={user?.role} />}
+          <div className="main-content">
+            <Routes>
             <Route 
               path="/login" 
               element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login setIsAuthenticated={setIsAuthenticated} />}
@@ -82,6 +84,7 @@ function App() {
         </div>
       </div>
     </div>
+    </ToastProvider>
   );
 }
 
