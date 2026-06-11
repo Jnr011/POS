@@ -2,6 +2,7 @@ import React from 'react';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '../hooks/useProducts';
 import { useAuthStore } from '../store/authStore';
+import { Product, Sale } from '../types';
 import '../styles/Dashboard.css';
 
 function SalesRepDashboard() {
@@ -11,14 +12,14 @@ function SalesRepDashboard() {
 
   const loading = salesLoading || productsLoading;
 
-  const productMap = {};
-  products.forEach(p => { productMap[p.id] = p.name; });
+  const productMap: Record<number, string> = {};
+  (products as Product[]).forEach(p => { productMap[p.id] = p.name; });
 
-  const mySales = sales.filter(sale => sale.user_id === user?.id);
+  const mySales = (sales as Sale[]).filter(sale => sale.user_id === user?.id);
   const today = new Date().toISOString().split('T')[0];
   const todaysSales = mySales.filter(sale =>
     sale.date?.includes(today)
-  ).reduce((sum, sale) => sum + parseFloat(sale.total_price || 0), 0);
+  ).reduce((sum, sale) => sum + Number(sale.total_price || 0), 0);
 
   const recentSales = mySales.slice(-5).reverse();
 
@@ -71,7 +72,7 @@ function SalesRepDashboard() {
                 <tr key={index}>
                   <td>{productMap[sale.product_id] || `Product #${sale.product_id}`}</td>
                   <td>{sale.quantity}</td>
-                  <td>GHS {parseFloat(sale.total_price || 0).toFixed(2)}</td>
+                  <td>GHS {Number(sale.total_price || 0).toFixed(2)}</td>
                   <td>{new Date(sale.date).toLocaleDateString()}</td>
                 </tr>
               ))}

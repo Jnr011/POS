@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useReports } from '../hooks/useReports';
+import { ReportsData, Sale, TopProduct } from '../types';
 import '../styles/Reports.css';
 
 function Reports() {
@@ -43,10 +44,10 @@ function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {reports.daily.length === 0 ? (
-                  <tr><td colSpan="4">No sales today</td></tr>
+                {(reports as ReportsData).daily.length === 0 ? (
+                  <tr><td colSpan={4}>No sales today</td></tr>
                 ) : (
-                  reports.daily.map(sale => (
+                  (reports as ReportsData).daily.map((sale: Sale) => (
                     <tr key={sale.id}>
                       <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
@@ -73,10 +74,10 @@ function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {reports.weekly.length === 0 ? (
-                  <tr><td colSpan="4">No sales this week</td></tr>
+                {(reports as ReportsData).weekly.length === 0 ? (
+                  <tr><td colSpan={4}>No sales this week</td></tr>
                 ) : (
-                  reports.weekly.map(sale => (
+                  (reports as ReportsData).weekly.map((sale: Sale) => (
                     <tr key={sale.id}>
                       <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
@@ -103,10 +104,10 @@ function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {reports.monthly.length === 0 ? (
-                  <tr><td colSpan="4">No sales this month</td></tr>
+                {(reports as ReportsData).monthly.length === 0 ? (
+                  <tr><td colSpan={4}>No sales this month</td></tr>
                 ) : (
-                  reports.monthly.map(sale => (
+                  (reports as ReportsData).monthly.map((sale: Sale) => (
                     <tr key={sale.id}>
                       <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
@@ -126,15 +127,15 @@ function Reports() {
             <div className="inventory-stats">
               <div className="stat-item">
                 <span>Total Products:</span>
-                <strong>{reports.inventory.totalProducts}</strong>
+                <strong>{(reports as ReportsData).inventory.totalProducts}</strong>
               </div>
               <div className="stat-item">
                 <span>Total Inventory Value:</span>
-                <strong>₵{reports.inventory.totalValue?.toFixed(2) || 0}</strong>
+                <strong>₵{(reports as ReportsData).inventory.totalValue?.toFixed(2) || 0}</strong>
               </div>
               <div className="stat-item">
                 <span>Low Stock Products:</span>
-                <strong>{reports.inventory.lowStockProducts}</strong>
+                <strong>{(reports as ReportsData).inventory.lowStockProducts}</strong>
               </div>
             </div>
           </div>
@@ -151,10 +152,10 @@ function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {reports.topProducts.length === 0 ? (
-                  <tr><td colSpan="2">No sales data</td></tr>
+                {(reports as ReportsData).topProducts.length === 0 ? (
+                  <tr><td colSpan={2}>No sales data</td></tr>
                 ) : (
-                  reports.topProducts.map((product, idx) => (
+                  (reports as ReportsData).topProducts.map((product: TopProduct, idx: number) => (
                     <tr key={idx}>
                       <td>{getProductName(product.product_id)}</td>
                       <td>{product.totalQuantitySold}</td>

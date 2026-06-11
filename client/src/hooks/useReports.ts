@@ -1,28 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
+import { ReportsData } from '../types';
 
 export function useReports() {
-  const [reports, setReports] = useState({
+  const [reports, setReports] = useState<ReportsData>({
     daily: [], weekly: [], monthly: [],
-    topProducts: [], inventory: {}
+    topProducts: [], inventory: { totalProducts: 0, totalValue: 0, lowStockProducts: 0 }
   });
-  const [productMap, setProductMap] = useState({});
+  const [productMap, setProductMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
 
   const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
       const [daily, weekly, monthly, topProducts, inventory, productsRes] = await Promise.all([
-        API.get('/reports/sales/daily'),
-        API.get('/reports/sales/weekly'),
-        API.get('/reports/sales/monthly'),
-        API.get('/reports/top-products'),
-        API.get('/reports/inventory/status'),
-        API.get('/inventory')
+        API.get<{ dailySales: ReportsData['daily'] }>('/reports/sales/daily'),
+        API.get<{ weeklySales: ReportsData['weekly'] }>('/reports/sales/weekly'),
+        API.get<{ monthlySales: ReportsData['monthly'] }>('/reports/sales/monthly'),
+        API.get<{ topProducts: ReportsData['topProducts'] }>('/reports/top-products'),
+        API.get<ReportsData['inventory']>('/reports/inventory/status'),
+        API.get<{ products: Array<{ id: number; name: string }> }>('/inventory')
       ]);
 
       const products = productsRes.data.products || [];
-      const map = {};
+      const map: Record<number, string> = {};
       products.forEach(p => { map[p.id] = p.name; });
       setProductMap(map);
 
@@ -31,9 +32,9 @@ export function useReports() {
         weekly: weekly.data.weeklySales || [],
         monthly: monthly.data.monthlySales || [],
         topProducts: topProducts.data.topProducts || [],
-        inventory: inventory.data || {}
+        inventory: (inventory.data || {}) as ReportsData['inventory']
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching reports:', err);
     } finally {
       setLoading(false);
@@ -42,7 +43,7 @@ export function useReports() {
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
-  const getProductName = useCallback((id) => productMap[id] || `Product #${id}`, [productMap]);
+  const getProductName = useCallback((id: number) => productMap[id] || `Product #${id}`, [productMap]);
 
   const refetch = fetchReports;
 

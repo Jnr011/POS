@@ -1,4 +1,3 @@
-
 import React from 'react';
 import './App.css';
 import Navbar from './components/Navbar';
@@ -15,9 +14,14 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
+import { User } from './types';
 
 function AppContent() {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout } = useAuthStore() as {
+    isAuthenticated: boolean;
+    user: User | null;
+    logout: () => void;
+  };
 
   useSync();
 

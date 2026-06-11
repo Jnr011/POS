@@ -3,7 +3,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Navbar.css';
 
-function Navbar({ onLogout }) {
+interface NavbarProps {
+  onLogout: () => void;
+}
+
+function Navbar({ onLogout }: NavbarProps) {
   const navigate = useNavigate();
 
   const handleLogout = () => {

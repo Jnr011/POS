@@ -1,12 +1,17 @@
 import React from 'react';
 import { useToast } from '../components/Toast';
 import { useReports } from '../hooks/useReports';
+import { InventoryStatus } from '../types';
 import '../styles/Dashboard.css';
 
 function AdminDashboard() {
   const { addToast } = useToast();
   const { reports, loading } = useReports();
-  const inv = reports.inventory;
+  const inv = reports.inventory as InventoryStatus & {
+    totalUsers?: number;
+    totalRevenue?: number;
+    totalSalesToday?: number;
+  };
 
   if (loading) return <div className="dashboard"><p>Loading admin dashboard...</p></div>;
 
@@ -65,7 +70,7 @@ function AdminDashboard() {
         </div>
 
         <div className="action-card">
-          <h3>� Registration Code</h3>
+          <h3>📝 Registration Code</h3>
           <p style={{ fontSize: '14px', marginBottom: '10px' }}>
             Share this code with new admins to register sales reps:
           </p>

@@ -1,7 +1,12 @@
 import { db } from './index';
 import API from '../services/api';
 
-export async function syncPendingChanges() {
+interface SyncResult {
+  synced: number;
+  errors: number;
+}
+
+export async function syncPendingChanges(): Promise<SyncResult> {
   if (!navigator.onLine) return { synced: 0, errors: 0 };
 
   const queue = await db.syncQueue.orderBy('timestamp').toArray();
@@ -21,7 +26,7 @@ export async function syncPendingChanges() {
           await API.delete(`/${item.table}/${item.recordId}`);
           break;
       }
-      await db.syncQueue.delete(item.id);
+      await db.syncQueue.delete(item.id!);
       synced++;
     } catch (err) {
       console.error(`Sync failed for ${item.table} #${item.recordId}:`, err);

@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { syncPendingChanges } from '../db/sync';
 import { useToast } from '../components/Toast';
 
-export function useSync(intervalMs = 30000) {
-  const intervalRef = useRef(null);
+export function useSync(intervalMs: number = 30000) {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function useSync(intervalMs = 30000) {
     window.addEventListener('online', handleOnline);
 
     return () => {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener('online', handleOnline);
     };
   }, [intervalMs]);

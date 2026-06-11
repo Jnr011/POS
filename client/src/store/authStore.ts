@@ -1,6 +1,15 @@
 import { create } from 'zustand';
+import { User } from '../types';
 
-const getStoredUser = () => {
+interface AuthStore {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (token: string, user: User) => void;
+  logout: () => void;
+}
+
+const getStoredUser = (): User | null => {
   try {
     const raw = localStorage.getItem('user');
     return raw ? JSON.parse(raw) : null;
@@ -9,12 +18,12 @@ const getStoredUser = () => {
   }
 };
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   user: getStoredUser(),
   token: localStorage.getItem('token') || null,
   isAuthenticated: !!localStorage.getItem('token'),
 
-  login: (token, user) => {
+  login: (token: string, user: User) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });

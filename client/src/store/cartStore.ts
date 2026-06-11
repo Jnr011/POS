@@ -1,6 +1,19 @@
 import { create } from 'zustand';
+import { Product } from '../types';
 
-export const useCartStore = create((set, get) => ({
+interface CartItem extends Product {
+  quantity: number;
+}
+
+interface CartStore {
+  items: CartItem[];
+  addItem: (product: Product) => void;
+  removeItem: (id: number) => void;
+  clearCart: () => void;
+  totalAmount: () => number;
+}
+
+export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
 
   addItem: (product) => set((state) => {
@@ -22,6 +35,6 @@ export const useCartStore = create((set, get) => ({
   clearCart: () => set({ items: [] }),
 
   totalAmount: () => {
-    return get().items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+    return get().items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   },
 }));

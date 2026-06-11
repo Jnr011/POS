@@ -1,10 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { User } from '../types';
 import '../styles/Sidebar.css';
 
-function Sidebar({ userRole }) {
-  const [user, setUser] = useState(null);
+interface SidebarProps {
+  userRole: string | undefined;
+}
+
+function Sidebar({ userRole }: SidebarProps) {
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');

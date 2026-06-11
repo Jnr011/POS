@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import API from '../services/api';
 import { useToast } from '../components/Toast';
 import { useProducts } from '../hooks/useProducts';
 import { useCartStore } from '../store/cartStore';
+import { Product } from '../types';
 import '../styles/Sales.css';
 
 function Sales() {
@@ -21,18 +21,18 @@ function Sales() {
       addToast('Sale completed successfully!', 'success');
       clearCart();
       refetch();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing sale:', error);
       addToast(error.response?.data?.message || 'Error processing sale', 'error');
     }
   };
 
-  const categories = [...new Set(products.map(p => p.category))];
-  const filteredProducts = products.filter(p =>
+  const categories = [...new Set(products.map((p: Product) => p.category))];
+  const filteredProducts = products.filter((p: Product) =>
     p.name.toLowerCase().includes(search.toLowerCase()) &&
     (!categoryFilter || p.category === categoryFilter)
   );
-  const totalAmount = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+  const totalAmount = cart.reduce((sum: number, item: any) => sum + (parseFloat(item.price) * item.quantity), 0);
 
   if (loading) return (
     <div className="sales">
@@ -67,13 +67,13 @@ function Sales() {
               type="text"
               placeholder="Search products..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
               className="search-input"
               autoFocus
             />
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategoryFilter(e.target.value)}
               className="category-filter"
             >
               <option value="">All Categories</option>
@@ -83,7 +83,7 @@ function Sales() {
             </select>
           </div>
           <div className="products-grid">
-            {filteredProducts.map(product => (
+            {filteredProducts.map((product: Product) => (
               <div key={product.id} className="product-card">
                 <h3>{product.name}</h3>
                 <p>Category: {product.category}</p>
@@ -105,7 +105,7 @@ function Sales() {
             <p>Cart is empty</p>
           ) : (
             <>
-              {cart.map(item => (
+              {cart.map((item: any) => (
                 <div key={item.id} className="cart-item">
                   <span>{item.name}</span>
                   <span>x{item.quantity}</span>

@@ -14,12 +14,11 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleRegister = async (e) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    // Validation
     if (!name || !email || !password || !confirmPassword || !registrationCode) {
       setError('All fields are required');
       return;
@@ -53,7 +52,7 @@ function Register() {
       setTimeout(() => {
         navigate('/login');
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -80,7 +79,7 @@ function Register() {
                 type="text"
                 placeholder="John Doe"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                 disabled={loading}
                 required
               />
@@ -93,7 +92,7 @@ function Register() {
                 type="email"
                 placeholder="john@pharmacy.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 disabled={loading}
                 required
               />
@@ -106,7 +105,7 @@ function Register() {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 disabled={loading}
                 required
               />
@@ -120,7 +119,7 @@ function Register() {
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                 disabled={loading}
                 required
               />
@@ -133,7 +132,7 @@ function Register() {
                 type="password"
                 placeholder="Enter admin code"
                 value={registrationCode}
-                onChange={(e) => setRegistrationCode(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRegistrationCode(e.target.value)}
                 disabled={loading}
                 required
               />

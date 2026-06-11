@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import API from '../services/api';
 import { useToast } from '../components/Toast';
 import { useProducts } from '../hooks/useProducts';
+import { Product } from '../types';
 import '../styles/Inventory.css';
+
+interface CsvProduct {
+  name: string;
+  category: string;
+  price: number;
+  stock_quantity: number;
+  expiry_date: string | null;
+}
 
 function Inventory() {
   const { addToast } = useToast();
@@ -14,58 +23,65 @@ function Inventory() {
     stock_quantity: '',
     expiry_date: ''
   });
-  const [editingId, setEditingId] = useState(null);
-  const [csvFile, setCsvFile] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState('');
-  const [csvPreview, setCsvPreview] = useState([]);
+  const [csvPreview, setCsvPreview] = useState<CsvProduct[]>([]);
   const [showPreview, setShowPreview] = useState(false);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const productData: Omit<Product, 'id'> = {
+      name: formData.name,
+      category: formData.category,
+      price: parseFloat(formData.price),
+      stock_quantity: parseInt(formData.stock_quantity, 10),
+      expiry_date: formData.expiry_date || null
+    };
     try {
       if (editingId) {
-        await updateProduct(editingId, formData);
+        await updateProduct(editingId, productData);
         setEditingId(null);
       } else {
-        await addProduct(formData);
+        await addProduct(productData);
       }
       setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product:', error);
       addToast('Error saving product', 'error');
     }
   };
 
-  const handleEdit = (product) => {
+  const handleEdit = (product: Product) => {
     setFormData({
       name: product.name,
       category: product.category,
-      price: product.price,
-      stock_quantity: product.stock_quantity,
-      expiry_date: product.expiry_date
+      price: String(product.price),
+      stock_quantity: String(product.stock_quantity),
+      expiry_date: product.expiry_date || ''
     });
     setEditingId(product.id);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProduct(id);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting product:', error);
         addToast('Error deleting product', 'error');
       }
     }
   };
 
-  const parseCSV = (text) => {
+  const parseCSV = (text: string): CsvProduct[] => {
     const lines = text.trim().split('\n');
     if (lines.length < 2) throw new Error('CSV file must have a header row and at least one data row');
 
@@ -77,12 +93,12 @@ function Inventory() {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
 
-    const data = [];
+    const data: CsvProduct[] = [];
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim() === '') continue;
       
       const values = lines[i].split(',').map(v => v.trim());
-      const row = {};
+      const row: Record<string, string> = {};
       headers.forEach((header, idx) => {
         row[header] = values[idx];
       });
@@ -111,8 +127,8 @@ function Inventory() {
     return data;
   };
 
-  const handleCsvFileChange = async (e) => {
-    const file = e.target.files[0];
+  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
@@ -130,29 +146,29 @@ function Inventory() {
       const data = parseCSV(text);
       setCsvPreview(data);
       setShowPreview(true);
-    } catch (error) {
+    } catch (error: any) {
       setCsvError(error.message);
       setCsvPreview([]);
       setShowPreview(false);
     }
   };
 
-  const handleCsvDragOver = (e) => {
+  const handleCsvDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.currentTarget.classList.add('drag-over');
   };
 
-  const handleCsvDragLeave = (e) => {
+  const handleCsvDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.currentTarget.classList.remove('drag-over');
   };
 
-  const handleCsvDrop = async (e) => {
+  const handleCsvDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
     
-    const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files?.[0];
     if (file) {
-      const input = document.getElementById('csv-file-input');
+      const input = document.getElementById('csv-file-input') as HTMLInputElement;
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
       input.files = dataTransfer.files;
@@ -172,7 +188,7 @@ function Inventory() {
         const data = parseCSV(text);
         setCsvPreview(data);
         setShowPreview(true);
-      } catch (error) {
+      } catch (error: any) {
         setCsvError(error.message);
         setCsvPreview([]);
         setShowPreview(false);
@@ -196,9 +212,9 @@ function Inventory() {
       setCsvFile(null);
       setCsvPreview([]);
       setShowPreview(false);
-      document.getElementById('csv-file-input').value = '';
+      (document.getElementById('csv-file-input') as HTMLInputElement).value = '';
       refetch();
-    } catch (error) {
+    } catch (error: any) {
       setCsvError(error.response?.data?.message || 'Error importing products. Please try again.');
     } finally {
       setCsvLoading(false);
@@ -368,7 +384,7 @@ Antibiotic Cream,Topical,2.99,30,2026-06-30</pre>
               </tr>
             </thead>
             <tbody>
-              {products.map(product => (
+              {(products as Product[]).map(product => (
                 <tr key={product.id}>
                   <td>{product.name}</td>
                   <td>{product.category}</td>
@@ -376,7 +392,7 @@ Antibiotic Cream,Topical,2.99,30,2026-06-30</pre>
                   <td className={product.stock_quantity < 10 ? 'low-stock' : ''}>
                     {product.stock_quantity}
                   </td>
-                  <td>{new Date(product.expiry_date).toLocaleDateString()}</td>
+                  <td>{new Date(product.expiry_date as string).toLocaleDateString()}</td>
                   <td>
                     <button className="edit-btn" onClick={() => handleEdit(product)}>Edit</button>
                     <button className="delete-btn" onClick={() => handleDelete(product.id)}>Delete</button>

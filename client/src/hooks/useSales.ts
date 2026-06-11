@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SaleRepository } from '../db/repository';
+import { Sale } from '../types';
 
 export function useSales() {
-  const [sales, setSales] = useState([]);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSales = useCallback(async () => {
@@ -10,7 +11,7 @@ export function useSales() {
       setLoading(true);
       const data = await SaleRepository.getAll();
       setSales(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching sales:', err);
     } finally {
       setLoading(false);
@@ -19,7 +20,7 @@ export function useSales() {
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
 
-  const createSale = async (productId, quantity) => {
+  const createSale = async (productId: number, quantity: number) => {
     const result = await SaleRepository.add({ product_id: productId, quantity });
     await fetchSales();
     return result;
