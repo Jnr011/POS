@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Navbar.css';
+import { Button } from '../components/ui/button';
 
 interface NavbarProps {
   onLogout: () => void;
@@ -16,12 +16,12 @@ function Navbar({ onLogout }: NavbarProps) {
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <h1 className="navbar-title">Pharmacy POS System</h1>
-        <button className="logout-btn" onClick={handleLogout}>
+    <nav className="bg-gray-900 text-white px-6 py-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Pharmacy POS System</h1>
+        <Button variant="ghost" className="text-white hover:bg-gray-800" onClick={handleLogout}>
           Logout
-        </button>
+        </Button>
       </div>
     </nav>
   );

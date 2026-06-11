@@ -3,7 +3,10 @@ import API from '../services/api';
 import { useToast } from '../components/Toast';
 import { useProducts } from '../hooks/useProducts';
 import { Product } from '../types';
-import '../styles/Inventory.css';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 interface CsvProduct {
   name: string;
@@ -221,186 +224,204 @@ function Inventory() {
     }
   };
 
-  if (loading) return <div className="inventory">Loading...</div>;
+  if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="inventory">
-      <h1>Inventory Management</h1>
-      <div className="inventory-container">
-        <div className="form-section">
-          <h2>{editingId ? 'Edit Product' : 'Add New Product'}</h2>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              name="name"
-              placeholder="Product Name"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-            />
-            <input
-              type="text"
-              name="category"
-              placeholder="Category"
-              value={formData.category}
-              onChange={handleInputChange}
-              required
-            />
-            <input
-              type="number"
-              name="price"
-              placeholder="Price"
-              value={formData.price}
-              onChange={handleInputChange}
-              step="0.01"
-              required
-            />
-            <input
-              type="number"
-              name="stock_quantity"
-              placeholder="Stock Quantity"
-              value={formData.stock_quantity}
-              onChange={handleInputChange}
-              required
-            />
-            <input
-              type="date"
-              name="expiry_date"
-              value={formData.expiry_date}
-              onChange={handleInputChange}
-            />
-            <button type="submit">{editingId ? 'Update' : 'Add'} Product</button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </form>
-        </div>
-        <div className="csv-section">
-          <h2>📤 Batch Import Products</h2>
-          <div
-            className="csv-upload-area"
-            onDragOver={handleCsvDragOver}
-            onDragLeave={handleCsvDragLeave}
-            onDrop={handleCsvDrop}
-          >
-            <div className="csv-upload-content">
-              <p className="csv-upload-icon">📁</p>
-              <p className="csv-upload-text">Drag and drop CSV file here or click to select</p>
-              <input
-                id="csv-file-input"
-                type="file"
-                accept=".csv"
-                onChange={handleCsvFileChange}
-                className="csv-file-input"
-              />
-            </div>
-          </div>
-
-          {csvError && <div className="csv-error">❌ {csvError}</div>}
-          {csvSuccess && <div className="csv-success">{csvSuccess}</div>}
-
-          {showPreview && csvPreview.length > 0 && (
-            <div className="csv-preview">
-              <h3>Preview ({csvPreview.length} products)</h3>
-              <div className="csv-preview-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Price</th>
-                      <th>Stock</th>
-                      <th>Expiry Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csvPreview.slice(0, 5).map((product, idx) => (
-                      <tr key={idx}>
-                        <td>{product.name}</td>
-                        <td>{product.category}</td>
-                        <td>₵{product.price.toFixed(2)}</td>
-                        <td>{product.stock_quantity}</td>
-                        <td>{product.expiry_date || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {csvPreview.length > 5 && (
-                  <p className="csv-preview-more">... and {csvPreview.length - 5} more products</p>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Inventory Management</h1>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? 'Edit Product' : 'Add New Product'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <Input
+                  type="text"
+                  name="name"
+                  placeholder="Product Name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                />
+                <Input
+                  type="text"
+                  name="category"
+                  placeholder="Category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  required
+                />
+                <Input
+                  type="number"
+                  name="price"
+                  placeholder="Price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  step="0.01"
+                  required
+                />
+                <Input
+                  type="number"
+                  name="stock_quantity"
+                  placeholder="Stock Quantity"
+                  value={formData.stock_quantity}
+                  onChange={handleInputChange}
+                  required
+                />
+                <Input
+                  type="date"
+                  name="expiry_date"
+                  value={formData.expiry_date}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit">{editingId ? 'Update' : 'Add'} Product</Button>
+                {editingId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingId(null);
+                      setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
+                    }}
+                  >
+                    Cancel
+                  </Button>
                 )}
               </div>
-              <button 
-                className="csv-import-btn"
-                onClick={handleCsvUpload}
-                disabled={csvLoading}
-              >
-                {csvLoading ? '⏳ Importing...' : `✅ Import ${csvPreview.length} Products`}
-              </button>
-            </div>
-          )}
+            </form>
+          </CardContent>
+        </Card>
 
-          <div className="csv-format-info">
-            <details>
-              <summary>📋 CSV Format Guide</summary>
-              <p><strong>Required columns:</strong></p>
-              <ul>
-                <li><code>name</code> - Product name</li>
-                <li><code>category</code> - Product category</li>
-                <li><code>price</code> - Product price (numbers only)</li>
-                <li><code>stock_quantity</code> - Quantity in stock (whole numbers only)</li>
-              </ul>
-              <p><strong>Optional columns:</strong></p>
-              <ul>
-                <li><code>expiry_date</code> - Expiry date (YYYY-MM-DD format)</li>
-              </ul>
-              <p><strong>Example CSV:</strong></p>
-              <pre>name,category,price,stock_quantity,expiry_date
+        <Card>
+          <CardHeader>
+            <CardTitle>Batch Import Products</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+              onDragOver={handleCsvDragOver}
+              onDragLeave={handleCsvDragLeave}
+              onDrop={handleCsvDrop}
+              onClick={() => document.getElementById('csv-file-input')?.click()}
+            >
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-3xl">📁</p>
+                <p className="text-muted-foreground">Drag and drop CSV file here or click to select</p>
+                <input
+                  id="csv-file-input"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvFileChange}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {csvError && <div className="mt-4 text-red-600">❌ {csvError}</div>}
+            {csvSuccess && <div className="mt-4 text-green-600">{csvSuccess}</div>}
+
+            {showPreview && csvPreview.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-2">Preview ({csvPreview.length} products)</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Expiry Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {csvPreview.slice(0, 5).map((product, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell>₵{product.price.toFixed(2)}</TableCell>
+                        <TableCell>{product.stock_quantity}</TableCell>
+                        <TableCell>{product.expiry_date || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {csvPreview.length > 5 && (
+                  <p className="text-sm text-muted-foreground mt-2">... and {csvPreview.length - 5} more products</p>
+                )}
+                <Button
+                  className="mt-4"
+                  onClick={handleCsvUpload}
+                  disabled={csvLoading}
+                >
+                  {csvLoading ? '⏳ Importing...' : `✅ Import ${csvPreview.length} Products`}
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <details>
+                <summary className="cursor-pointer font-medium">📋 CSV Format Guide</summary>
+                <div className="mt-2 space-y-2 text-sm">
+                  <p><strong>Required columns:</strong></p>
+                  <ul className="list-disc list-inside">
+                    <li><code>name</code> - Product name</li>
+                    <li><code>category</code> - Product category</li>
+                    <li><code>price</code> - Product price (numbers only)</li>
+                    <li><code>stock_quantity</code> - Quantity in stock (whole numbers only)</li>
+                  </ul>
+                  <p><strong>Optional columns:</strong></p>
+                  <ul className="list-disc list-inside">
+                    <li><code>expiry_date</code> - Expiry date (YYYY-MM-DD format)</li>
+                  </ul>
+                  <p><strong>Example CSV:</strong></p>
+                  <pre className="bg-muted p-3 rounded text-xs overflow-x-auto">name,category,price,stock_quantity,expiry_date
 Paracetamol 500mg,Pain Relief,5.99,100,2025-12-31
 Aspirin 100mg,Pain Relief,3.50,50,2025-11-15
 Vitamin C 1000mg,Supplements,8.99,75,
 Antibiotic Cream,Topical,2.99,30,2026-06-30</pre>
-            </details>
-          </div>
-        </div>
-        <div className="products-section">
-          <h2>Products List</h2>
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Expiry Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+                </div>
+              </details>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Products List</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Expiry Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {(products as Product[]).map(product => (
-                <tr key={product.id}>
-                  <td>{product.name}</td>
-                  <td>{product.category}</td>
-                  <td>₵{product.price}</td>
-                  <td className={product.stock_quantity < 10 ? 'low-stock' : ''}>
+                <TableRow key={product.id}>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.category}</TableCell>
+                  <TableCell>₵{product.price}</TableCell>
+                  <TableCell className={product.stock_quantity < 10 ? 'text-red-600 font-semibold' : ''}>
                     {product.stock_quantity}
-                  </td>
-                  <td>{new Date(product.expiry_date as string).toLocaleDateString()}</td>
-                  <td>
-                    <button className="edit-btn" onClick={() => handleEdit(product)}>Edit</button>
-                    <button className="delete-btn" onClick={() => handleDelete(product.id)}>Delete</button>
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell>{new Date(product.expiry_date as string).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>Edit</Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(product.id)}>Delete</Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

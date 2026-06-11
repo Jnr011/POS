@@ -2,7 +2,8 @@ import React from 'react';
 import { useToast } from '../components/Toast';
 import { useReports } from '../hooks/useReports';
 import { InventoryStatus } from '../types';
-import '../styles/Dashboard.css';
+import { Button } from '../components/ui/button';
+import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
 
 function AdminDashboard() {
   const { addToast } = useToast();
@@ -13,80 +14,113 @@ function AdminDashboard() {
     totalSalesToday?: number;
   };
 
-  if (loading) return <div className="dashboard"><p>Loading admin dashboard...</p></div>;
+  if (loading) return <div className="p-6"><p>Loading admin dashboard...</p></div>;
 
   return (
-    <div className="dashboard">
-      <h1>📊 Admin Dashboard</h1>
-      <div className="stats-grid">
-        <div className="stat-card admin-card">
-          <h3>📦 Total Products</h3>
-          <p className="stat-value">{inv?.totalProducts || 0}</p>
-          <span className="stat-label">Managed</span>
-        </div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">📊 Admin Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>📦 Total Products</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{inv?.totalProducts || 0}</p>
+            <p className="text-sm text-muted-foreground">Managed</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card warning-card">
-          <h3>⚠️ Low Stock Alert</h3>
-          <p className="stat-value">{inv?.lowStockProducts || 0}</p>
-          <span className="stat-label">Items below threshold</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>⚠️ Low Stock Alert</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{inv?.lowStockProducts || 0}</p>
+            <p className="text-sm text-muted-foreground">Items below threshold</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card">
-          <h3>💰 Inventory Value</h3>
-          <p className="stat-value">GHS {(inv?.totalValue || 0).toFixed(2)}</p>
-          <span className="stat-label">Total stock value</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>💰 Inventory Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">GHS {(inv?.totalValue || 0).toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground">Total stock value</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card">
-          <h3>👥 Total Users</h3>
-          <p className="stat-value">{inv?.totalUsers || 0}</p>
-          <span className="stat-label">Active users in system</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>👥 Total Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{inv?.totalUsers || 0}</p>
+            <p className="text-sm text-muted-foreground">Active users in system</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card success-card">
-          <h3>💵 Total Revenue</h3>
-          <p className="stat-value">GHS {(inv?.totalRevenue || 0).toFixed(2)}</p>
-          <span className="stat-label">All-time sales</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>💵 Total Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">GHS {(inv?.totalRevenue || 0).toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground">All-time sales</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card">
-          <h3>📈 Today's Sales</h3>
-          <p className="stat-value">GHS {(inv?.totalSalesToday || 0).toFixed(2)}</p>
-          <span className="stat-label">Today's revenue</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>📈 Today's Sales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">GHS {(inv?.totalSalesToday || 0).toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground">Today's revenue</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="admin-actions">
-        <div className="action-card">
-          <h3>🔧 Admin Only Features</h3>
-          <ul>
-            <li>✓ View all inventory</li>
-            <li>✓ Manage products</li>
-            <li>✓ View all sales reports</li>
-            <li>✓ Register new sales reps</li>
-            <li>✓ View user statistics</li>
-            <li>✓ Access system reports</li>
-          </ul>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>🔧 Admin Only Features</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1">
+              <li>✓ View all inventory</li>
+              <li>✓ Manage products</li>
+              <li>✓ View all sales reports</li>
+              <li>✓ Register new sales reps</li>
+              <li>✓ View user statistics</li>
+              <li>✓ Access system reports</li>
+            </ul>
+          </CardContent>
+        </Card>
 
-        <div className="action-card">
-          <h3>📝 Registration Code</h3>
-          <p style={{ fontSize: '14px', marginBottom: '10px' }}>
-            Share this code with new admins to register sales reps:
-          </p>
-          <div className="code-box">
-            <code>ADMIN2024</code>
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText('ADMIN2024');
-                addToast('Registration code copied!', 'success');
-              }}
-              className="copy-btn"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>📝 Registration Code</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm mb-2">
+              Share this code with new admins to register sales reps:
+            </p>
+            <div className="bg-muted rounded p-4 inline-flex items-center gap-2">
+              <code>ADMIN2024</code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText('ADMIN2024');
+                  addToast('Registration code copied!', 'success');
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

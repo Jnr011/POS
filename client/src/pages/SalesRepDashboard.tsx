@@ -3,7 +3,8 @@ import { useSales } from '../hooks/useSales';
 import { useProducts } from '../hooks/useProducts';
 import { useAuthStore } from '../store/authStore';
 import { Product, Sale } from '../types';
-import '../styles/Dashboard.css';
+import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 function SalesRepDashboard() {
   const user = useAuthStore((state) => state.user);
@@ -23,86 +24,114 @@ function SalesRepDashboard() {
 
   const recentSales = mySales.slice(-5).reverse();
 
-  if (loading) return <div className="dashboard"><p>Loading your dashboard...</p></div>;
+  if (loading) return <div className="p-6"><p>Loading your dashboard...</p></div>;
 
   return (
-    <div className="dashboard">
-      <h1>💼 Welcome, Sales Representative</h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">💼 Welcome, Sales Representative</h1>
 
-      <div className="stats-grid">
-        <div className="stat-card sales-card">
-          <h3>📊 Today's Sales</h3>
-          <p className="stat-value">GHS {todaysSales.toFixed(2)}</p>
-          <span className="stat-label">Your earnings today</span>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>📊 Today's Sales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">GHS {todaysSales.toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground">Your earnings today</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card">
-          <h3>🔢 Sales Transactions</h3>
-          <p className="stat-value">{mySales.length}</p>
-          <span className="stat-label">Total transactions</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>🔢 Sales Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{mySales.length}</p>
+            <p className="text-sm text-muted-foreground">Total transactions</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card">
-          <h3>📦 Products Available</h3>
-          <p className="stat-value">{products.length}</p>
-          <span className="stat-label">Ready to sell</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>📦 Products Available</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{products.length}</p>
+            <p className="text-sm text-muted-foreground">Ready to sell</p>
+          </CardContent>
+        </Card>
 
-        <div className="stat-card success-card">
-          <h3>💰 Estimated Commission</h3>
-          <p className="stat-value">GHS {(todaysSales * 0.05).toFixed(2)}</p>
-          <span className="stat-label">5% on sales</span>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>💰 Estimated Commission</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">GHS {(todaysSales * 0.05).toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground">5% on sales</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="recent-sales">
-        <h2>📈 Your Recent Sales</h2>
+      <div className="mt-6">
+        <h2 className="text-xl font-semibold mb-4">📈 Your Recent Sales</h2>
         {recentSales.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Amount (GHS)</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Amount (GHS)</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {recentSales.map((sale, index) => (
-                <tr key={index}>
-                  <td>{productMap[sale.product_id] || `Product #${sale.product_id}`}</td>
-                  <td>{sale.quantity}</td>
-                  <td>GHS {Number(sale.total_price || 0).toFixed(2)}</td>
-                  <td>{new Date(sale.date).toLocaleDateString()}</td>
-                </tr>
+                <TableRow key={index}>
+                  <TableCell>{productMap[sale.product_id] || `Product #${sale.product_id}`}</TableCell>
+                  <TableCell>{sale.quantity}</TableCell>
+                  <TableCell>GHS {Number(sale.total_price || 0).toFixed(2)}</TableCell>
+                  <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ) : (
-          <p style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+          <p className="py-5 text-center text-muted-foreground">
             No sales yet. Start by accessing the Sales page to record your first transaction!
           </p>
         )}
       </div>
 
-      <div className="quick-actions">
-        <h2>⚡ Quick Actions</h2>
-        <div className="action-grid">
-          <div className="action-item">
-            <h4>📤 Record Sale</h4>
-            <p>Log a new product sale</p>
-            <a href="/sales" className="action-link">Go to Sales →</a>
-          </div>
-          <div className="action-item">
-            <h4>📋 View Inventory</h4>
-            <p>Check available products</p>
-            <a href="/inventory" className="action-link">Check Inventory →</a>
-          </div>
-          <div className="action-item">
-            <h4>📊 Daily Summary</h4>
-            <p>View today's performance</p>
-            <a href="/dashboard" className="action-link">Refresh Stats →</a>
-          </div>
+      <div className="mt-6">
+        <h2 className="text-xl font-semibold mb-4">⚡ Quick Actions</h2>
+        <div className="flex gap-4">
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>📤 Record Sale</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-2">Log a new product sale</p>
+              <a href="/sales" className="text-sm text-primary hover:underline">Go to Sales →</a>
+            </CardContent>
+          </Card>
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>📋 View Inventory</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-2">Check available products</p>
+              <a href="/inventory" className="text-sm text-primary hover:underline">Check Inventory →</a>
+            </CardContent>
+          </Card>
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>📊 Daily Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-2">View today's performance</p>
+              <a href="/dashboard" className="text-sm text-primary hover:underline">Refresh Stats →</a>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

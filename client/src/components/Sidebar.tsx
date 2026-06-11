@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { User } from '../types';
-import '../styles/Sidebar.css';
 
 interface SidebarProps {
   userRole: string | undefined;
@@ -21,55 +20,55 @@ function Sidebar({ userRole }: SidebarProps) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <h3>{isAdmin ? '👨‍💼 Admin' : '👤 Sales Rep'}</h3>
-        <p>{user?.name}</p>
+    <aside className="w-64 bg-white border-r min-h-screen flex flex-col">
+      <div className="p-4 border-b">
+        <h3 className="font-semibold text-sm">{isAdmin ? '👨‍💼 Admin' : '👤 Sales Rep'}</h3>
+        <p className="text-xs text-gray-600 mt-1">{user?.name}</p>
       </div>
 
-      <ul className="sidebar-menu">
+      <ul className="flex flex-col p-2 space-y-1">
         <li>
-          <Link to="/dashboard">
+          <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors">
             {isAdmin ? '📊 Overview' : '📊 My Dashboard'}
           </Link>
         </li>
         
         <li>
-          <Link to="/sales">
+          <Link to="/sales" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors">
             💳 {isAdmin ? 'All Sales' : 'Record Sale'}
           </Link>
         </li>
 
         <li>
-          <Link to="/inventory">
+          <Link to="/inventory" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors">
             📦 Inventory
           </Link>
         </li>
 
         {isAdmin && (
           <>
-            <li className="sidebar-divider">
-              <span>Admin Only</span>
+            <li className="px-3 py-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Only</span>
             </li>
             <li>
-              <Link to="/reports">
+              <Link to="/reports" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                 📈 Reports
               </Link>
             </li>
-            <li className="admin-only">
-              <a href="#register-rep" style={{ pointerEvents: 'none' }}>
+            <li className="px-3 py-2 rounded-md bg-gray-50">
+              <a href="#register-rep" className="flex items-center gap-2 text-sm text-gray-500" style={{ pointerEvents: 'none' }}>
                 👥 Register Sales Rep
               </a>
-              <p style={{ fontSize: '11px', marginTop: '5px' }}>
-                Use Registration Code: <strong>ADMIN2024</strong>
+              <p style={{ fontSize: '11px', marginTop: '5px' }} className="text-gray-400">
+                Use Registration Code: <strong className="text-gray-600">ADMIN2024</strong>
               </p>
             </li>
           </>
         )}
       </ul>
 
-      <div className="sidebar-footer">
-        <p style={{ fontSize: '12px', color: '#999' }}>
+      <div className="mt-auto p-4 border-t">
+        <p className="text-xs text-gray-400">
           {isAdmin 
             ? '🔐 Admin Access Enabled' 
             : '⭐ Sales Rep Account'}
