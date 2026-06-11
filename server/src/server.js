@@ -1,5 +1,11 @@
 
 require('dotenv').config();
+
+if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+}
+
 const express = require('express');
 const sequelize = require('./config/database');
 const User = require('./models/user');
