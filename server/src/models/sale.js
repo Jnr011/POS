@@ -7,6 +7,10 @@ const Sale = sequelize.define('Sale', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
     quantity: {
         type: DataTypes.INTEGER,
         allowNull: false
@@ -20,5 +24,10 @@ const Sale = sequelize.define('Sale', {
         defaultValue: DataTypes.NOW
     }
 });
+
+Sale.associate = (models) => {
+    Sale.belongsTo(models.Product, { foreignKey: 'product_id' });
+    Sale.belongsTo(models.User, { foreignKey: 'user_id' });
+};
 
 module.exports = Sale;
