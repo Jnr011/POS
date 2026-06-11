@@ -17,6 +17,40 @@
   gap: 30px;
 }
 
+.sales-filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.category-filter {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 140px;
+  background: white;
+}
+
+.category-filter:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
 .products-list h2,
 .cart-section h2 {
   color: #2c3e50;

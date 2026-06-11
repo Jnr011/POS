@@ -7,6 +7,8 @@ function Sales() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -55,6 +57,11 @@ function Sales() {
     }
   };
 
+  const categories = [...new Set(products.map(p => p.category))];
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) &&
+    (!categoryFilter || p.category === categoryFilter)
+  );
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   if (loading) return <div className="sales">Loading...</div>;
@@ -65,8 +72,28 @@ function Sales() {
       <div className="sales-container">
         <div className="products-list">
           <h2>Available Products</h2>
+          <div className="sales-filters">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="search-input"
+              autoFocus
+            />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="category-filter"
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
           <div className="products-grid">
-            {products.map(product => (
+            {filteredProducts.map(product => (
               <div key={product.id} className="product-card">
                 <h3>{product.name}</h3>
                 <p>Category: {product.category}</p>
