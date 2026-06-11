@@ -10,29 +10,41 @@ function SalesRepDashboard() {
     myCommission: 0
   });
   const [recentSales, setRecentSales] = useState([]);
+  const [productMap, setProductMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const salesRes = await API.get('/sales');
-        const sales = salesRes.data.sales || [];
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const [salesRes, inventoryRes] = await Promise.all([
+          API.get('/sales'),
+          API.get('/inventory')
+        ]);
 
-        // Calculate today's sales for this sales rep
+        const allSales = salesRes.data.sales || [];
+        const products = inventoryRes.data.products || [];
+        const map = {};
+        products.forEach(p => { map[p.id] = p.name; });
+        setProductMap(map);
+
+        // Filter sales for this user
+        const mySales = allSales.filter(sale => sale.user_id === user.id);
+
         const today = new Date().toISOString().split('T')[0];
-        const todaysSales = sales.filter(sale =>
+        const todaysSales = mySales.filter(sale =>
           sale.date?.includes(today)
         ).reduce((sum, sale) => sum + parseFloat(sale.total_price || 0), 0);
 
         setStats({
           todaysSales,
-          salesCount: sales.length,
-          productsAvailable: 30,
+          salesCount: mySales.length,
+          productsAvailable: products.length,
           myCommission: todaysSales * 0.05
         });
 
-        setRecentSales(sales.slice(-5).reverse());
+        setRecentSales(mySales.slice(-5).reverse());
       } catch (error) {
         console.error('Error fetching sales rep dashboard:', error);
         setError('Failed to load dashboard data.');
@@ -83,7 +95,7 @@ function SalesRepDashboard() {
           <table>
             <thead>
               <tr>
-                <th>Product ID</th>
+                <th>Product</th>
                 <th>Quantity</th>
                 <th>Amount (GHS)</th>
                 <th>Date</th>
@@ -92,7 +104,7 @@ function SalesRepDashboard() {
             <tbody>
               {recentSales.map((sale, index) => (
                 <tr key={index}>
-                  <td>#{sale.product_id}</td>
+                  <td>{productMap[sale.product_id] || `Product #${sale.product_id}`}</td>
                   <td>{sale.quantity}</td>
                   <td>GHS {parseFloat(sale.total_price || 0).toFixed(2)}</td>
                   <td>{new Date(sale.date).toLocaleDateString()}</td>

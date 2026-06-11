@@ -10,6 +10,7 @@ function Reports() {
     topProducts: [],
     inventory: {}
   });
+  const [productMap, setProductMap] = useState({});
   const [activeTab, setActiveTab] = useState('daily');
   const [loading, setLoading] = useState(true);
 
@@ -19,13 +20,19 @@ function Reports() {
 
   const fetchReports = async () => {
     try {
-      const [daily, weekly, monthly, topProducts, inventory] = await Promise.all([
+      const [daily, weekly, monthly, topProducts, inventory, productsRes] = await Promise.all([
         API.get('/reports/sales/daily'),
         API.get('/reports/sales/weekly'),
         API.get('/reports/sales/monthly'),
         API.get('/reports/top-products'),
-        API.get('/reports/inventory/status')
+        API.get('/reports/inventory/status'),
+        API.get('/inventory')
       ]);
+
+      const products = productsRes.data.products || [];
+      const map = {};
+      products.forEach(p => { map[p.id] = p.name; });
+      setProductMap(map);
 
       setReports({
         daily: daily.data.dailySales || [],
@@ -40,6 +47,8 @@ function Reports() {
       setLoading(false);
     }
   };
+
+  const getProductName = (id) => productMap[id] || `Product #${id}`;
 
   if (loading) return <div className="reports">Loading...</div>;
 
@@ -68,10 +77,10 @@ function Reports() {
         {activeTab === 'daily' && (
           <div>
             <h2>Daily Sales Report</h2>
-            <table className="report-table">
+              <table className="report-table">
               <thead>
                 <tr>
-                  <th>Product ID</th>
+                  <th>Product</th>
                   <th>Quantity</th>
                   <th>Total Price</th>
                   <th>Date</th>
@@ -83,7 +92,7 @@ function Reports() {
                 ) : (
                   reports.daily.map(sale => (
                     <tr key={sale.id}>
-                      <td>{sale.product_id}</td>
+                      <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
                       <td>₵{sale.total_price}</td>
                       <td>{new Date(sale.date).toLocaleDateString()}</td>
@@ -101,7 +110,7 @@ function Reports() {
             <table className="report-table">
               <thead>
                 <tr>
-                  <th>Product ID</th>
+                  <th>Product</th>
                   <th>Quantity</th>
                   <th>Total Price</th>
                   <th>Date</th>
@@ -113,7 +122,7 @@ function Reports() {
                 ) : (
                   reports.weekly.map(sale => (
                     <tr key={sale.id}>
-                      <td>{sale.product_id}</td>
+                      <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
                       <td>₵{sale.total_price}</td>
                       <td>{new Date(sale.date).toLocaleDateString()}</td>
@@ -131,7 +140,7 @@ function Reports() {
             <table className="report-table">
               <thead>
                 <tr>
-                  <th>Product ID</th>
+                  <th>Product</th>
                   <th>Quantity</th>
                   <th>Total Price</th>
                   <th>Date</th>
@@ -143,7 +152,7 @@ function Reports() {
                 ) : (
                   reports.monthly.map(sale => (
                     <tr key={sale.id}>
-                      <td>{sale.product_id}</td>
+                      <td>{getProductName(sale.product_id)}</td>
                       <td>{sale.quantity}</td>
                       <td>₵{sale.total_price}</td>
                       <td>{new Date(sale.date).toLocaleDateString()}</td>
@@ -181,7 +190,7 @@ function Reports() {
             <table className="report-table">
               <thead>
                 <tr>
-                  <th>Product ID</th>
+                  <th>Product</th>
                   <th>Total Quantity Sold</th>
                 </tr>
               </thead>
@@ -191,7 +200,7 @@ function Reports() {
                 ) : (
                   reports.topProducts.map((product, idx) => (
                     <tr key={idx}>
-                      <td>{product.product_id}</td>
+                      <td>{getProductName(product.product_id)}</td>
                       <td>{product.totalQuantitySold}</td>
                     </tr>
                   ))
