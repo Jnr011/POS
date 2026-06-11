@@ -84,10 +84,4 @@ exports.getTopProducts = async (req, res) => {
     }
 };
 
-exports.generateSalesReport = async (req, res) => {
-    exports.getDailySalesReport(req, res);
-};
 
-exports.generateInventoryReport = async (req, res) => {
-    exports.getInventoryStatusReport(req, res);
-};

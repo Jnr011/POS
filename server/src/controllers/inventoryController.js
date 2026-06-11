@@ -86,14 +86,6 @@ exports.getLowStockProducts = async (req, res) => {
     }
 };
 
-exports.getProducts = async (req, res) => {
-    exports.getAllProducts(req, res);
-};
-
-exports.addProduct = async (req, res) => {
-    exports.createProduct(req, res);
-};
-
 exports.batchImportProducts = async (req, res) => {
     try {
         const { products } = req.body;
