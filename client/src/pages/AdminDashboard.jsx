@@ -17,17 +17,7 @@ function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setError('No authentication token found');
-          setLoading(false);
-          return;
-        }
-
-        // Fetch inventory status
-        const inventoryRes = await API.get('/reports/inventory/status', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const inventoryRes = await API.get('/reports/inventory/status');
 
         setStats(prev => ({
           ...prev,

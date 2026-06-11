@@ -26,10 +26,7 @@ function Inventory() {
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await API.get('/inventory', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await API.get('/inventory');
       setProducts(response.data.products);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -46,16 +43,11 @@ function Inventory() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
       if (editingId) {
-        await API.put(`/inventory/${editingId}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await API.put(`/inventory/${editingId}`, formData);
         setEditingId(null);
       } else {
-        await API.post('/inventory', formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await API.post('/inventory', formData);
       }
       setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
       fetchProducts();
@@ -79,10 +71,7 @@ function Inventory() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const token = localStorage.getItem('token');
-        await API.delete(`/inventory/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await API.delete(`/inventory/${id}`);
         fetchProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -215,12 +204,8 @@ function Inventory() {
     try {
       setCsvLoading(true);
       setCsvError('');
-      const token = localStorage.getItem('token');
-      
-      const response = await API.post('/inventory/batch-import', 
-        { products: csvPreview },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+
+      const response = await API.post('/inventory/batch-import', { products: csvPreview });
 
       setCsvSuccess(`✅ Successfully imported ${response.data.importedCount} products!`);
       setCsvFile(null);

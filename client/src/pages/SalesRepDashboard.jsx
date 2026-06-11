@@ -16,36 +16,22 @@ function SalesRepDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user'));
-        
-        if (!token) {
-          setError('No authentication token found');
-          setLoading(false);
-          return;
-        }
-
-        // Fetch sales data
-        const salesRes = await API.get('/sales', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const salesRes = await API.get('/sales');
+        const sales = salesRes.data.sales || [];
 
         // Calculate today's sales for this sales rep
         const today = new Date().toISOString().split('T')[0];
-        const todaysSales = salesRes.data.filter(sale => 
+        const todaysSales = sales.filter(sale =>
           sale.date?.includes(today)
         ).reduce((sum, sale) => sum + parseFloat(sale.total_price || 0), 0);
 
-        const sales = salesRes.data || [];
-
         setStats({
-          todaysSales: todaysSales,
+          todaysSales,
           salesCount: sales.length,
-          productsAvailable: 30, // This would be fetched from inventory
-          myCommission: todaysSales * 0.05 // 5% commission
+          productsAvailable: 30,
+          myCommission: todaysSales * 0.05
         });
 
-        // Get recent sales (last 5)
         setRecentSales(sales.slice(-5).reverse());
       } catch (error) {
         console.error('Error fetching sales rep dashboard:', error);

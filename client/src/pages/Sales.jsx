@@ -11,10 +11,7 @@ function Sales() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await API.get('/inventory', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await API.get('/inventory');
         setProducts(response.data.products);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -45,20 +42,12 @@ function Sales() {
 
   const handleCheckout = async () => {
     try {
-      const token = localStorage.getItem('token');
       for (const item of cart) {
-        await API.post(
-          '/sales',
-          { product_id: item.id, quantity: item.quantity },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await API.post('/sales', { product_id: item.id, quantity: item.quantity });
       }
       alert('Sale completed successfully!');
       setCart([]);
-      // Refresh products
-      const response = await API.get('/inventory', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await API.get('/inventory');
       setProducts(response.data.products);
     } catch (error) {
       console.error('Error processing sale:', error);

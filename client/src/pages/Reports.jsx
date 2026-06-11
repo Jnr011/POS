@@ -19,13 +19,12 @@ function Reports() {
 
   const fetchReports = async () => {
     try {
-      const token = localStorage.getItem('token');
       const [daily, weekly, monthly, topProducts, inventory] = await Promise.all([
-        API.get('/reports/sales/daily', { headers: { Authorization: `Bearer ${token}` } }),
-        API.get('/reports/sales/weekly', { headers: { Authorization: `Bearer ${token}` } }),
-        API.get('/reports/sales/monthly', { headers: { Authorization: `Bearer ${token}` } }),
-        API.get('/reports/top-products', { headers: { Authorization: `Bearer ${token}` } }),
-        API.get('/reports/inventory/status', { headers: { Authorization: `Bearer ${token}` } })
+        API.get('/reports/sales/daily'),
+        API.get('/reports/sales/weekly'),
+        API.get('/reports/sales/monthly'),
+        API.get('/reports/top-products'),
+        API.get('/reports/inventory/status')
       ]);
 
       setReports({
