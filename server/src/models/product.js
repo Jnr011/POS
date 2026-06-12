@@ -1,4 +1,3 @@
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -21,8 +20,42 @@ const Product = sequelize.define('Product', {
     },
     expiry_date: {
         type: DataTypes.DATE,
-        allowNull: false
-    }
+        allowNull: true
+    },
+    barcode: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    min_stock: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    supplier: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    updatedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    syncedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    syncStatus: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    deviceId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+}, {
+    timestamps: false,
 });
+
+Product.associate = (models) => {
+    Product.hasMany(models.Sale, { foreignKey: 'product_id' });
+};
 
 module.exports = Product;

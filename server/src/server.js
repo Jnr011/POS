@@ -1,13 +1,15 @@
 
 require('dotenv').config();
+
 const express = require('express');
 const sequelize = require('./config/database');
 const User = require('./models/user');
-const bcrypt = require('bcryptjs');
+const Product = require('./models/product');
+const Sale = require('./models/sale');
+const Device = require('./models/device');
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(express.json());
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -19,47 +21,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection
 sequelize.authenticate()
   .then(() => console.log('✅ Database connected'))
   .catch(err => console.log('❌ Database Error: ' + err));
 
-// Sync models with database
-sequelize.sync({ alter: false })
-  .then(async () => {
-    console.log('✅ Models synced');
-    
-    // Create initial admin if doesn't exist
-    try {
-      const adminExists = await User.findOne({ where: { email: 'admin@pharmacy.com' } });
-      if (!adminExists) {
-        const hashedPassword = await bcrypt.hash('admin@123', 10);
-        await User.create({
-          name: 'System Admin',
-          email: 'admin@pharmacy.com',
-          password: hashedPassword,
-          role: 'admin'
-        });
-        console.log('✅ Initial admin created (email: admin@pharmacy.com, password: admin@123)');
-      }
-    } catch (err) {
-      console.log('⚠️  Could not create admin: ' + err.message);
-    }
-  })
+sequelize.sync({ alter: true })
+  .then(() => console.log('✅ Models synced'))
   .catch(err => console.log('❌ Sync error: ' + err));
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/inventory', require('./routes/inventory'));
-app.use('/api/sales', require('./routes/sales'));
-app.use('/api/reports', require('./routes/reports'));
+app.use('/api/sync', require('./routes/sync'));
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'Server is running' });
 });
 
-// Error handling middleware
+app.post('/api/log', express.json({ limit: '100kb' }), (req, res) => {
+  const { error, stack, componentStack, url, timestamp } = req.body || {};
+  console.error(`[Client Error] ${url} @ ${new Date(timestamp || Date.now()).toISOString()}`);
+  console.error(`  ${error}`);
+  if (stack) console.error(`  Stack: ${stack.split('\n').slice(0, 3).join('\n    ')}`);
+  if (componentStack) console.error(`  Component: ${componentStack.split('\n').slice(0, 3).join('\n    ')}`);
+  res.status(200).json({ logged: true });
+});
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal server error', error: err.message });
