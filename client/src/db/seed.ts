@@ -1,5 +1,7 @@
 import { db } from './index';
 
+const RELAY_URL = 'http://localhost:5000/api/sync';
+
 const DEMO_PRODUCTS = [
   { name: 'Paracetamol 500mg', category: 'Pain Relief', price: 5.99, stock_quantity: 100, expiry_date: '2026-12-31', min_stock: 20, supplier: 'PharmaDist Co.' },
   { name: 'Aspirin 100mg', category: 'Pain Relief', price: 3.50, stock_quantity: 8, expiry_date: '2026-11-15', min_stock: 20, supplier: 'PharmaDist Co.' },
@@ -105,4 +107,54 @@ export async function seedDatabase(): Promise<void> {
   } finally {
     _seeding = false;
   }
+}
+
+export async function resetDevDatabase(): Promise<void> {
+  console.log('[DevReset] Wiping local IndexedDB...');
+  await db.transaction(
+    'rw',
+    db.products,
+    db.sales,
+    db.users,
+    db.syncQueue,
+    db.syncMeta,
+    db.storeInfo,
+    db.stockAdjustments,
+    db.activityLog,
+    db.printJobs,
+    async () => {
+      await Promise.all([
+        db.products.clear(),
+        db.sales.clear(),
+        db.users.clear(),
+        db.syncQueue.clear(),
+        db.syncMeta.clear(),
+        db.storeInfo.clear(),
+        db.stockAdjustments.clear(),
+        db.activityLog.clear(),
+        db.printJobs.clear(),
+      ]);
+    }
+  );
+
+  localStorage.removeItem('authUser');
+  localStorage.removeItem('deviceId');
+  localStorage.removeItem('heldSales');
+
+  console.log('[DevReset] Wiping relay server...');
+  try {
+    const res = await fetch(`${RELAY_URL}/reset`, { method: 'POST' });
+    if (res.ok) {
+      console.log('[DevReset] Server wiped');
+    } else {
+      console.warn('[DevReset] Server wipe failed:', res.status);
+    }
+  } catch {
+    console.warn('[DevReset] Server not reachable — continuing offline');
+  }
+
+  console.log('[DevReset] Re-seeding fresh data...');
+  await seedDatabase();
+  console.log('[DevReset] Done — reloading...');
+  window.location.reload();
 }

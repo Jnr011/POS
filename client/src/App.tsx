@@ -10,9 +10,15 @@ import AppLayout from './layouts/AppLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import SalesRepDashboard from './pages/SalesRepDashboard';
 import Sales from './pages/Sales';
+import SalesHistory from './pages/SalesHistory';
 import Login from './pages/Login';
 import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
+import ReportsSales from './pages/ReportsSales';
+import ReportsProducts from './pages/ReportsProducts';
+import ReportsInventory from './pages/ReportsInventory';
+import ReportsActivity from './pages/ReportsActivity';
+import UserManagement from './pages/UserManagement';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuthStore();
@@ -40,18 +46,24 @@ function AppContent() {
   return (
     <Routes>
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} /> : <Login />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/dashboard' : '/pos'} /> : <Login />} />
       </Route>
 
       <Route element={isAuthenticated ? <AppLayout /> : <Navigate to="/login" />}>
         <Route path="/dashboard" element={<DashboardRoute />} />
-        <Route path="/sales" element={<Sales />} />
+        <Route path="/sales" element={<SalesHistory />} />
+        <Route path="/pos" element={<Sales />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/reports" element={user?.role === 'admin' ? <Reports /> : <Navigate to="/dashboard" />} />
+        <Route path="/reports/sales" element={user?.role === 'admin' ? <ReportsSales /> : <Navigate to="/dashboard" />} />
+        <Route path="/reports/products" element={user?.role === 'admin' ? <ReportsProducts /> : <Navigate to="/dashboard" />} />
+        <Route path="/reports/inventory" element={user?.role === 'admin' ? <ReportsInventory /> : <Navigate to="/dashboard" />} />
+        <Route path="/reports/activity" element={user?.role === 'admin' ? <ReportsActivity /> : <Navigate to="/dashboard" />} />
+        <Route path="/admin/users" element={user?.role === 'admin' ? <UserManagement /> : <Navigate to="/dashboard" />} />
       </Route>
 
-      <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} />} />
-      <Route path="*" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} />} />
+      <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/pos'} />} />
+      <Route path="*" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/pos'} />} />
     </Routes>
   );
 }

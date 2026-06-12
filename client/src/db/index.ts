@@ -43,10 +43,10 @@ class PharmacyDB extends Dexie {
       stockAdjustments: '++id, productId, timestamp',
     });
 
-    this.version(3).stores({
+    this.version(4).stores({
       products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
       sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId',
-      users: '++id, email, role, syncStatus, deviceId',
+      users: '++id, email, role, syncStatus, deviceId, mustChangePin',
       syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
       syncMeta: 'tableName',
       printJobs: '++id, status, createdAt',

@@ -180,4 +180,18 @@ router.get('/status', async (req, res) => {
   }
 });
 
+// POST /api/sync/reset — wipe ALL data (dev only)
+router.post('/reset', async (req, res) => {
+  try {
+    await Product.destroy({ where: {}, force: true });
+    await Sale.destroy({ where: {}, force: true });
+    await User.destroy({ where: {}, force: true });
+    await Device.destroy({ where: {}, force: true });
+
+    res.json({ status: 'ok', message: 'All data wiped' });
+  } catch (err) {
+    res.status(500).json({ error: 'Reset failed', message: err.message });
+  }
+});
+
 module.exports = router;

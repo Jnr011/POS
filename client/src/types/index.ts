@@ -46,6 +46,7 @@ export interface User {
   email: string;
   role: 'admin' | 'sales';
   pinHash: string;
+  mustChangePin?: boolean;
   isActive: boolean;
   updatedAt: number;
   syncedAt?: number;

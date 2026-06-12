@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
 import { UserRepository, StoreRepository } from '../db/repository';
+import { resetDevDatabase } from '../db/seed';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { PinInput } from '../components/PinInput';
-import { LogIn, Store, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ChangePinDialog } from '../components/ChangePinDialog';
+import { LogIn, Store, Eye, EyeOff, AlertCircle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const LAST_EMAIL_KEY = 'pos_last_email';
@@ -95,6 +97,7 @@ function LoginForm() {
   const [email, setEmail]     = useState(() => localStorage.getItem(LAST_EMAIL_KEY) || '');
   const [pin, setPin]         = useState('');
   const [showPin, setShowPin] = useState(false);
+  const [mustChangePin, setMustChangePin] = useState(false);
   const emailRef              = useRef<HTMLInputElement>(null);
   const { login, error, loading } = useAuth();
   const storeLogin = useAuthStore(s => s.login);
@@ -107,11 +110,27 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const user = await login(email, pin);
+    console.log('[LoginForm] Login result:', { mustChangePin: user?.mustChangePin, role: user?.role, name: user?.name });
     if (user) {
       localStorage.setItem(LAST_EMAIL_KEY, email);
       storeLogin(user);
-      toast.success(`Welcome back, ${user.name}!`);
-      navigate(user.role === 'admin' ? '/dashboard' : '/sales');
+      if (user.mustChangePin) {
+        console.log('[LoginForm] mustChangePin is TRUE — showing dialog');
+        setMustChangePin(true);
+      } else {
+        console.log('[LoginForm] mustChangePin is falsy — navigating to POS');
+        toast.success(`Welcome back, ${user.name}!`);
+        navigate(user.role === 'admin' ? '/dashboard' : '/pos');
+      }
+    }
+  };
+
+  const handlePinChanged = () => {
+    setMustChangePin(false);
+    const user = useAuthStore.getState().user;
+    if (user) {
+      toast.success(`Welcome, ${user.name}!`);
+      navigate(user.role === 'admin' ? '/dashboard' : '/pos');
     }
   };
 
@@ -173,6 +192,12 @@ function LoginForm() {
           <DemoRow role="Sales rep" cred="john@pharmacy.com · 56789"  />
         </div>
       </div>
+
+      <ChangePinDialog
+        open={mustChangePin}
+        onOpenChange={setMustChangePin}
+        onCompleted={handlePinChanged}
+      />
     </>
   );
 }
@@ -307,6 +332,7 @@ function SetupWizardForm({ onComplete }: { onComplete: () => void }) {
 
 function Login() {
   const [isSetup, setIsSetup] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     UserRepository.getAdminCount().then(count => {
@@ -314,9 +340,39 @@ function Login() {
     });
   }, []);
 
-  return isSetup
-    ? <SetupWizardForm onComplete={() => setIsSetup(false)} />
-    : <LoginForm />;
+  const handleReset = async () => {
+    if (!confirm('This will wipe ALL local and server data and reload fresh. Continue?')) return;
+    setResetting(true);
+    try {
+      await resetDevDatabase();
+    } catch {
+      toast.error('Reset failed — check console');
+      setResetting(false);
+    }
+  };
+
+  return (
+    <>
+      {isSetup
+        ? <SetupWizardForm onComplete={() => setIsSetup(false)} />
+        : <LoginForm />}
+
+      {import.meta.env.DEV && (
+        <div className="mt-8 pt-4 border-t border-border/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            disabled={resetting}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-destructive w-full"
+          >
+            <RotateCcw className="size-3" />
+            {resetting ? 'Resetting…' : 'Reset Dev Database'}
+          </Button>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default Login;

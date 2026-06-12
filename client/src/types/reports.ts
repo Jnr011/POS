@@ -1,7 +1,10 @@
+export type TrendPreset = 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'this_year';
+
 export interface SalesTrendPoint {
   date: string;
   revenue: number;
   orders: number;
+  avgOrderValue: number;
 }
 
 export interface ProductPerformance {
@@ -67,6 +70,7 @@ export interface DateRange {
   from: Date;
   to: Date;
   label: string;
+  preset: TrendPreset;
 }
 
 export interface ReportSummary {

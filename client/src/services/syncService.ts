@@ -139,9 +139,37 @@ class SyncService {
         for (let i = 0; i < result.accepted; i++) {
           acceptedIds.add(queue[i].id!);
         }
+
+        const now = Date.now();
+        const syncedRecords = new Map<string, Set<number>>();
+
         for (const id of acceptedIds) {
+          const item = queue.find(q => q.id === id);
+          if (item) {
+            const key = item.table;
+            if (!syncedRecords.has(key)) syncedRecords.set(key, new Set());
+            syncedRecords.get(key)!.add(item.recordId);
+          }
           await db.syncQueue.delete(id);
         }
+
+        for (const [table, recordIds] of syncedRecords) {
+          try {
+            const tbl = (db as any)[table];
+            if (tbl && typeof tbl.update === 'function') {
+              for (const recordId of recordIds) {
+                try {
+                  await tbl.update(recordId, { syncStatus: 'synced', syncedAt: now });
+                } catch {
+                  // record may not exist locally
+                }
+              }
+            }
+          } catch {
+            // best-effort sync status update
+          }
+        }
+
         this._lastSyncedAt = result.serverTimestamp;
         this._lastError = null;
         this._pendingPushes = (await db.syncQueue.count());

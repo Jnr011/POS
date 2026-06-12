@@ -4,6 +4,10 @@ import {
   ShoppingCart,
   Package,
   BarChart3,
+  TrendingUp,
+  FileText,
+  ClipboardList,
+  Users,
   Store,
   LogOut,
   Sun,
@@ -31,12 +35,18 @@ interface SidebarProps {
 
 const SHARED_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Sales',     path: '/sales',     icon: ShoppingCart    },
-  { label: 'Inventory', path: '/inventory', icon: Package         },
+  { label: 'POS Terminal', path: '/pos', icon: ShoppingCart },
+  { label: 'Sales History', path: '/sales', icon: FileText },
+  { label: 'Inventory', path: '/inventory', icon: Package },
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Reports', path: '/reports', icon: BarChart3 },
+  { label: 'Users', path: '/admin/users', icon: Users },
+  { label: 'Reports Overview', path: '/reports', icon: BarChart3 },
+  { label: 'Sales Report', path: '/reports/sales', icon: TrendingUp },
+  { label: 'Products', path: '/reports/products', icon: Package },
+  { label: 'Inventory', path: '/reports/inventory', icon: FileText },
+  { label: 'Activity Log', path: '/reports/activity', icon: ClipboardList },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

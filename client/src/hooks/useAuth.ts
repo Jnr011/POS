@@ -86,6 +86,7 @@ export function useAuth() {
         email: data.email,
         role: data.role,
         pinHash,
+        mustChangePin: data.role === 'sales',
         isActive: true,
       });
       return user;

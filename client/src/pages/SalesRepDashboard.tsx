@@ -9,6 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Skeleton } from '../components/ui/skeleton';
 import { StatCard } from '../components/StatCard';
 import { PageHeader } from '../components/PageHeader';
+import { formatCurrency } from '../lib/currency';
 import {
   DollarSign,
   ShoppingCart,
@@ -68,7 +69,7 @@ function SalesRepDashboard() {
         <StatCard
           icon={<DollarSign className="size-4 text-success" />}
           label="Today's Sales"
-          value={`GHS ${todaysSales.toFixed(2)}`}
+          value={formatCurrency(todaysSales)}
           sub="Your revenue today"
           accent="bg-success"
         />
@@ -89,7 +90,7 @@ function SalesRepDashboard() {
         <StatCard
           icon={<Target className="size-4 text-warning" />}
           label="Commission"
-          value={`GHS ${(todaysSales * 0.05).toFixed(2)}`}
+          value={formatCurrency(todaysSales * 0.05)}
           sub="5% on sales"
           accent="bg-warning"
         />
@@ -106,7 +107,7 @@ function SalesRepDashboard() {
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Quantity</TableHead>
-                <TableHead>Amount (GHS)</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
@@ -115,7 +116,7 @@ function SalesRepDashboard() {
                 <TableRow key={index}>
                   <TableCell>{productMap[sale.product_id] || `Product #${sale.product_id}`}</TableCell>
                   <TableCell>{sale.quantity}</TableCell>
-                  <TableCell>GHS {Number(sale.total_price || 0).toFixed(2)}</TableCell>
+                  <TableCell>{formatCurrency(Number(sale.total_price || 0))}</TableCell>
                   <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
@@ -138,7 +139,7 @@ function SalesRepDashboard() {
               Record Sale
             </div>
             <p className="text-xs text-muted-foreground">Log a new product sale</p>
-            <Link to="/sales" className="text-xs text-primary hover:underline inline-block mt-1">
+            <Link to="/pos" className="text-xs text-primary hover:underline inline-block mt-1">
               Go to Sales {'\u2192'}
             </Link>
           </CardContent>

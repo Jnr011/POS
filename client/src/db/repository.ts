@@ -1,4 +1,6 @@
 import { db } from './index';
+import { activityLogger } from './activityLogger';
+import { buildTrendData } from '../lib/trendBuilder';
 import { Product, Sale, User, CartItem, StockAdjustment } from '../types';
 import type {
   SalesTrendPoint,
@@ -7,12 +9,22 @@ import type {
   AttendantPerformance,
   InventoryValuation,
   ReportSummary,
+  TrendPreset,
 } from '../types/reports';
 
 let deviceId = localStorage.getItem('deviceId');
 if (!deviceId) {
-  deviceId = 'pos-' + crypto.randomUUID().slice(0, 8);
+  deviceId = crypto.randomUUID();
   localStorage.setItem('deviceId', deviceId);
+}
+
+export function generatePin(): string {
+  const digits = '0123456789';
+  let pin = '';
+  for (let i = 0; i < 5; i++) {
+    pin += digits[Math.floor(Math.random() * digits.length)];
+  }
+  return pin;
 }
 
 function getDeviceId(): string {
@@ -88,6 +100,7 @@ export const ProductRepository = {
     };
     const id = await db.products.add(entry);
     await queueSync('create', 'products', id, entry as unknown as Record<string, unknown>);
+    activityLogger.log('product_add', `Added product "${data.name}"`, { productId: id, name: data.name, category: data.category });
     return { ...entry, id };
   },
 
@@ -101,11 +114,14 @@ export const ProductRepository = {
     };
     await db.products.update(id, updates);
     await queueSync('update', 'products', id, updates as unknown as Record<string, unknown>);
+    activityLogger.log('product_edit', `Updated product "${existing.name}"`, { productId: id, name: existing.name, changes: Object.keys(data) });
   },
 
   async delete(id: number): Promise<void> {
+    const existing = await db.products.get(id);
     await db.products.delete(id);
     await queueSync('delete', 'products', id, null);
+    activityLogger.log('product_delete', `Deleted product "${existing?.name ?? id}"`, { productId: id, name: existing?.name });
   },
 
   async adjustStock(id: number, delta: number, reason: string, userId: number): Promise<void> {
@@ -129,6 +145,9 @@ export const ProductRepository = {
       timestamp: now(),
     });
     await queueSync('update', 'products', id, { stock_quantity: newQty } as unknown as Record<string, unknown>);
+    activityLogger.log('stock_adjust', `Adjusted "${product.name}" by ${delta > 0 ? '+' : ''}${delta} (${reason})`, {
+      productId: id, name: product.name, delta, reason, previousQty, newQty,
+    });
   },
 
   async batchImport(products: Omit<Product, 'id' | 'updatedAt' | 'syncedAt' | 'syncStatus' | 'deviceId'>[]): Promise<number> {
@@ -143,6 +162,7 @@ export const ProductRepository = {
     for (let i = 0; i < toAdd.length; i++) {
       await queueSync('create', 'products', ids[i] as number, toAdd[i] as unknown as Record<string, unknown>);
     }
+    activityLogger.log('csv_import', `Imported ${ids.length} products via CSV`, { count: ids.length });
     return ids.length;
   },
 };
@@ -219,6 +239,14 @@ export const SaleRepository = {
 
       const id = await db.sales.add(sale as Sale);
       await queueSync('create', 'sales', id, sale as unknown as Record<string, unknown>);
+
+      activityLogger.log('sale', `Sale #${id} — ${cart.length} items, ${grandTotal.toFixed(2)}`, {
+        saleId: id,
+        itemCount: cart.length,
+        grandTotal,
+        paymentMethod,
+      });
+
       return { ...sale, id };
     });
   },
@@ -230,27 +258,38 @@ export const UserRepository = {
   },
 
   async getById(id: number): Promise<User | undefined> {
-    return db.users.get(id);
+    const user = await db.users.get(id);
+    return user as User | undefined;
   },
 
   async getByEmail(email: string): Promise<User | undefined> {
-    return db.users.filter(u => u.email === email).first();
+    const user = await db.users.filter(u => u.email === email).first();
+    if (user) {
+      console.log('[UserRepo.getByEmail] Found:', { id: user.id, mustChangePin: (user as any).mustChangePin, name: user.name });
+    }
+    return user as User | undefined;
   },
 
   async getByPinHash(pinHash: string): Promise<User | undefined> {
-    return db.users.filter(u => u.pinHash === pinHash && u.role === 'sales').first();
+    const user = await db.users.filter(u => u.pinHash === pinHash && u.role === 'sales').first();
+    return user as User | undefined;
   },
 
   async add(user: Omit<User, 'id' | 'updatedAt' | 'syncedAt' | 'syncStatus' | 'deviceId'>): Promise<User> {
     const entry: User = {
       ...user,
+      mustChangePin: user.mustChangePin ?? false,
       updatedAt: now(),
       syncStatus: 'pending',
       deviceId: getDeviceId(),
     };
+    console.log('[UserRepo.add] Storing:', { name: entry.name, mustChangePin: entry.mustChangePin, role: entry.role });
     const id = await db.users.add(entry);
+    const verify = await db.users.get(id);
+    console.log('[UserRepo.add] Verified from DB:', { id, mustChangePin: verify?.mustChangePin });
     await queueSync('create', 'users', id, entry as unknown as Record<string, unknown>);
-    return { ...entry, id };
+    activityLogger.log('user_add', `Added user "${user.name}" (${user.role})`, { userId: id, name: user.name, role: user.role });
+    return { ...entry, id } as User;
   },
 
   async update(id: number, data: Partial<User>): Promise<void> {
@@ -265,6 +304,12 @@ export const UserRepository = {
 
   async deactivate(id: number): Promise<void> {
     await this.update(id, { isActive: false });
+    const user = await db.users.get(id);
+    activityLogger.log('user_deactivate', `Deactivated user "${user?.name ?? id}"`, { userId: id, name: user?.name });
+  },
+
+  async updatePin(id: number, newPinHash: string): Promise<void> {
+    await this.update(id, { pinHash: newPinHash, mustChangePin: false } as Partial<User>);
   },
 
   async getAdminCount(): Promise<number> {
@@ -366,83 +411,13 @@ export const ReportsRepository = {
   },
 
   async getSalesTrend(
-    period: 'daily' | 'weekly' | 'monthly',
-    count: number,
+    preset: TrendPreset,
+    from: Date,
+    to: Date,
   ): Promise<SalesTrendPoint[]> {
-    const now = new Date();
-    let from: Date;
-
-    if (period === 'daily') {
-      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - count + 1);
-    } else if (period === 'weekly') {
-      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - count * 7 + 1);
-    } else {
-      from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-    }
-
-    const sales = await this.getSalesByDateRange(from, now);
-    const grouped = new Map<string, { revenue: number; orders: number }>();
-
-    for (const sale of sales) {
-      const d = new Date(sale.date);
-      let key: string;
-
-      if (period === 'daily') {
-        key = d.toISOString().split('T')[0];
-      } else if (period === 'weekly') {
-        const weekStart = new Date(d);
-        weekStart.setDate(d.getDate() - d.getDay());
-        key = weekStart.toISOString().split('T')[0];
-      } else {
-        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      }
-
-      const existing = grouped.get(key) || { revenue: 0, orders: 0 };
-      existing.revenue += sale.grand_total;
-      existing.orders += 1;
-      grouped.set(key, existing);
-    }
-
-    const result: SalesTrendPoint[] = [];
-    if (period === 'daily') {
-      for (let i = count - 1; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const key = d.toISOString().split('T')[0];
-        const data = grouped.get(key) || { revenue: 0, orders: 0 };
-        result.push({
-          date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          revenue: data.revenue,
-          orders: data.orders,
-        });
-      }
-    } else if (period === 'weekly') {
-      for (let i = count - 1; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
-        const weekStart = new Date(d);
-        weekStart.setDate(d.getDate() - d.getDay());
-        const key = weekStart.toISOString().split('T')[0];
-        const data = grouped.get(key) || { revenue: 0, orders: 0 };
-        result.push({
-          date: `W${Math.ceil((d.getDate()) / 7)} ${d.toLocaleDateString('en-US', { month: 'short' })}`,
-          revenue: data.revenue,
-          orders: data.orders,
-        });
-      }
-    } else {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const data = grouped.get(key) || { revenue: 0, orders: 0 };
-        result.push({
-          date: months[d.getMonth()],
-          revenue: data.revenue,
-          orders: data.orders,
-        });
-      }
-    }
-
-    return result;
+    const sales = await this.getSalesByDateRange(from, to);
+    const raw = sales.map(s => ({ date: s.date, grand_total: s.grand_total }));
+    return buildTrendData(preset, raw);
   },
 
   async getProductPerformance(
@@ -455,18 +430,28 @@ export const ReportsRepository = {
     let totalRevenue = 0;
 
     for (const sale of sales) {
-      for (const item of sale.items || []) {
+      if (!Array.isArray(sale.items)) continue;
+      for (const item of sale.items) {
+        if (!item || item.id == null) continue;
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        if (qty <= 0) continue;
+
         const existing = productMap.get(item.id) || {
-          name: item.name,
-          category: item.category,
+          name: item.name || `Product #${item.id}`,
+          category: item.category || '',
           sold: 0,
           revenue: 0,
         };
-        existing.sold += item.quantity;
-        existing.revenue += item.price * item.quantity;
+        existing.sold += qty;
+        existing.revenue += price * qty;
         productMap.set(item.id, existing);
-        totalRevenue += item.price * item.quantity;
+        totalRevenue += price * qty;
       }
+    }
+
+    if (productMap.size === 0) {
+      return [];
     }
 
     return [...productMap.entries()]
@@ -478,7 +463,7 @@ export const ReportsRepository = {
         revenue: data.revenue,
         percentOfTotal: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.revenue - a.revenue || b.totalSold - a.totalSold)
       .slice(0, limit);
   },
 
