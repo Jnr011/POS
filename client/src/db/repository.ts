@@ -1,5 +1,13 @@
 import { db } from './index';
 import { Product, Sale, User, CartItem, StockAdjustment } from '../types';
+import type {
+  SalesTrendPoint,
+  ProductPerformance,
+  PaymentBreakdown,
+  AttendantPerformance,
+  InventoryValuation,
+  ReportSummary,
+} from '../types/reports';
 
 let deviceId = localStorage.getItem('deviceId');
 if (!deviceId) {
@@ -323,24 +331,228 @@ export const StoreRepository = {
 };
 
 export const ReportsRepository = {
-  async getTodaySalesTotal(): Promise<number> {
-    const today = new Date().toISOString().split('T')[0];
-    const sales = await db.sales.filter(s => s.date.startsWith(today)).toArray();
-    return sales.reduce((sum, s) => sum + s.grand_total, 0);
+  async getReportSummary(from: Date, to: Date): Promise<ReportSummary> {
+    const sales = await this.getSalesByDateRange(from, to);
+    const totalRevenue = sales.reduce((sum, s) => sum + s.grand_total, 0);
+    const totalOrders = sales.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    const periodMs = to.getTime() - from.getTime();
+    const prevFrom = new Date(from.getTime() - periodMs);
+    const prevTo = new Date(from.getTime());
+    const prevSales = await this.getSalesByDateRange(prevFrom, prevTo);
+    const prevRevenue = prevSales.reduce((sum, s) => sum + s.grand_total, 0);
+    const prevOrders = prevSales.length;
+
+    const revenueChange = prevRevenue > 0
+      ? ((totalRevenue - prevRevenue) / prevRevenue) * 100
+      : totalRevenue > 0 ? 100 : 0;
+    const ordersChange = prevOrders > 0
+      ? ((totalOrders - prevOrders) / prevOrders) * 100
+      : totalOrders > 0 ? 100 : 0;
+
+    return { totalRevenue, totalOrders, avgOrderValue, revenueChange, ordersChange };
   },
 
-  async getTodaySalesCount(): Promise<number> {
-    const today = new Date().toISOString().split('T')[0];
-    return db.sales.filter(s => s.date.startsWith(today)).count();
+  async getSalesByDateRange(from: Date, to: Date): Promise<Sale[]> {
+    const fromMs = from.getTime();
+    const toMs = to.getTime() + 86400000;
+    return db.sales
+      .filter(s => {
+        const ts = new Date(s.date).getTime();
+        return ts >= fromMs && ts < toMs;
+      })
+      .toArray();
   },
 
-  async getInventoryValue(): Promise<number> {
+  async getSalesTrend(
+    period: 'daily' | 'weekly' | 'monthly',
+    count: number,
+  ): Promise<SalesTrendPoint[]> {
+    const now = new Date();
+    let from: Date;
+
+    if (period === 'daily') {
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - count + 1);
+    } else if (period === 'weekly') {
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - count * 7 + 1);
+    } else {
+      from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    }
+
+    const sales = await this.getSalesByDateRange(from, now);
+    const grouped = new Map<string, { revenue: number; orders: number }>();
+
+    for (const sale of sales) {
+      const d = new Date(sale.date);
+      let key: string;
+
+      if (period === 'daily') {
+        key = d.toISOString().split('T')[0];
+      } else if (period === 'weekly') {
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      const existing = grouped.get(key) || { revenue: 0, orders: 0 };
+      existing.revenue += sale.grand_total;
+      existing.orders += 1;
+      grouped.set(key, existing);
+    }
+
+    const result: SalesTrendPoint[] = [];
+    if (period === 'daily') {
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        const data = grouped.get(key) || { revenue: 0, orders: 0 };
+        result.push({
+          date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          revenue: data.revenue,
+          orders: data.orders,
+        });
+      }
+    } else if (period === 'weekly') {
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        const key = weekStart.toISOString().split('T')[0];
+        const data = grouped.get(key) || { revenue: 0, orders: 0 };
+        result.push({
+          date: `W${Math.ceil((d.getDate()) / 7)} ${d.toLocaleDateString('en-US', { month: 'short' })}`,
+          revenue: data.revenue,
+          orders: data.orders,
+        });
+      }
+    } else {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const data = grouped.get(key) || { revenue: 0, orders: 0 };
+        result.push({
+          date: months[d.getMonth()],
+          revenue: data.revenue,
+          orders: data.orders,
+        });
+      }
+    }
+
+    return result;
+  },
+
+  async getProductPerformance(
+    from: Date,
+    to: Date,
+    limit = 10,
+  ): Promise<ProductPerformance[]> {
+    const sales = await this.getSalesByDateRange(from, to);
+    const productMap = new Map<number, { name: string; category: string; sold: number; revenue: number }>();
+    let totalRevenue = 0;
+
+    for (const sale of sales) {
+      for (const item of sale.items || []) {
+        const existing = productMap.get(item.id) || {
+          name: item.name,
+          category: item.category,
+          sold: 0,
+          revenue: 0,
+        };
+        existing.sold += item.quantity;
+        existing.revenue += item.price * item.quantity;
+        productMap.set(item.id, existing);
+        totalRevenue += item.price * item.quantity;
+      }
+    }
+
+    return [...productMap.entries()]
+      .map(([id, data]) => ({
+        productId: id,
+        name: data.name,
+        category: data.category,
+        totalSold: data.sold,
+        revenue: data.revenue,
+        percentOfTotal: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit);
+  },
+
+  async getPaymentBreakdown(from: Date, to: Date): Promise<PaymentBreakdown[]> {
+    const sales = await this.getSalesByDateRange(from, to);
+    const total = sales.length;
+    const breakdown = new Map<string, { count: number; total: number }>();
+
+    for (const sale of sales) {
+      const existing = breakdown.get(sale.payment_method) || { count: 0, total: 0 };
+      existing.count += 1;
+      existing.total += sale.grand_total;
+      breakdown.set(sale.payment_method, existing);
+    }
+
+    return [...breakdown.entries()].map(([method, data]) => ({
+      method: method as 'cash' | 'card' | 'mobile_money',
+      count: data.count,
+      total: data.total,
+      percent: total > 0 ? (data.count / total) * 100 : 0,
+    })).sort((a, b) => b.total - a.total);
+  },
+
+  async getSalesByAttendant(from: Date, to: Date): Promise<AttendantPerformance[]> {
+    const sales = await this.getSalesByDateRange(from, to);
+    const userMap = new Map<number, { name: string; count: number; revenue: number }>();
+    const users = await db.users.toArray();
+    const userNames = new Map(users.map(u => [u.id, u.name]));
+
+    for (const sale of sales) {
+      const existing = userMap.get(sale.user_id) || {
+        name: userNames.get(sale.user_id) || `User #${sale.user_id}`,
+        count: 0,
+        revenue: 0,
+      };
+      existing.count += 1;
+      existing.revenue += sale.grand_total;
+      userMap.set(sale.user_id, existing);
+    }
+
+    return [...userMap.entries()].map(([userId, data]) => ({
+      userId,
+      name: data.name,
+      salesCount: data.count,
+      totalRevenue: data.revenue,
+      avgOrderValue: data.count > 0 ? data.revenue / data.count : 0,
+    })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  },
+
+  async getInventoryValuation(): Promise<InventoryValuation> {
     const products = await db.products.toArray();
-    return products.reduce((sum, p) => sum + (p.price * p.stock_quantity), 0);
-  },
+    const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock_quantity), 0);
+    const totalProducts = products.length;
+    const lowStockCount = products.filter(p => p.stock_quantity <= (p.min_stock ?? 10)).length;
 
-  async getLowStockCount(threshold = 10): Promise<number> {
-    return db.products.filter(p => p.stock_quantity <= threshold).count();
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 30);
+    const expiringSoonCount = products.filter(
+      p => p.expiry_date && new Date(p.expiry_date) <= deadline,
+    ).length;
+
+    const categoryMap = new Map<string, { value: number; count: number }>();
+    for (const p of products) {
+      const existing = categoryMap.get(p.category) || { value: 0, count: 0 };
+      existing.value += p.price * p.stock_quantity;
+      existing.count += 1;
+      categoryMap.set(p.category, existing);
+    }
+
+    const byCategory = [...categoryMap.entries()]
+      .map(([category, data]) => ({ category, ...data }))
+      .sort((a, b) => b.value - a.value);
+
+    return { totalValue, totalProducts, lowStockCount, expiringSoonCount, byCategory };
   },
 
   async getTopProducts(limit = 10): Promise<{ productId: number; name: string; totalSold: number }[]> {
