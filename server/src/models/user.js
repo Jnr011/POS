@@ -1,4 +1,3 @@
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -14,12 +13,38 @@ const User = sequelize.define('User', {
     },
     password: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
+    },
+    pinHash: {
+        type: DataTypes.STRING,
+        allowNull: true,
     },
     role: {
         type: DataTypes.STRING,
         allowNull: false
-    }
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+    },
+    updatedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    syncedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    syncStatus: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    deviceId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+}, {
+    timestamps: false,
 });
 
 User.associate = (models) => {

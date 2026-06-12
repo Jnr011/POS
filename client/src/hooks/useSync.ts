@@ -1,29 +1,20 @@
-import { useEffect, useRef } from 'react';
-import { syncPendingChanges } from '../db/sync';
-import { useToast } from '../components/Toast';
+import { useEffect } from 'react';
+import { syncService } from '../services/syncService';
+import { toast } from 'sonner';
 
-export function useSync(intervalMs: number = 30000) {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { addToast } = useToast();
-
+export function useSync() {
   useEffect(() => {
-    const sync = async () => {
-      if (!navigator.onLine) return;
-      const result = await syncPendingChanges();
-      if (result.synced > 0) {
-        addToast(`Synced ${result.synced} pending changes`, 'success');
+    syncService.initialize();
+
+    const unsub = syncService.subscribe((status) => {
+      if (status.lastErrorMessage) {
+        toast.error(`Sync error: ${status.lastErrorMessage}`);
       }
-    };
-
-    sync();
-    intervalRef.current = setInterval(sync, intervalMs);
-
-    const handleOnline = () => { sync(); };
-    window.addEventListener('online', handleOnline);
+    });
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      window.removeEventListener('online', handleOnline);
+      unsub();
+      syncService.destroy();
     };
-  }, [intervalMs]);
+  }, []);
 }

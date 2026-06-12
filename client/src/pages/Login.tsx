@@ -1,84 +1,322 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import API from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../components/ui/card';
+import { UserRepository, StoreRepository } from '../db/repository';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
+import { PinInput } from '../components/PinInput';
+import { LogIn, Store, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+const LAST_EMAIL_KEY = 'pos_last_email';
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+// ─── Shared primitives ────────────────────────────────────────────────────────
+
+function PageHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="mb-7">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/[0.07] px-3.5 py-3">
+      <AlertCircle className="mt-px size-4 shrink-0 text-destructive" />
+      <p className="text-sm text-destructive leading-snug">{message}</p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <span className="size-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
+  );
+}
+
+function PinRevealField({
+  label,
+  value,
+  onChange,
+  reveal,
+  onToggleReveal,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  reveal: boolean;
+  onToggleReveal: () => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-3">
+        <PinInput value={value} onChange={onChange} reveal={reveal} length={5} autoFocus={autoFocus} />
+        <button
+          type="button"
+          onClick={onToggleReveal}
+          tabIndex={-1}
+          aria-label={reveal ? 'Hide PIN' : 'Show PIN'}
+          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </button>
+      </div>
+    </Field>
+  );
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+
+function LoginForm() {
+  const [email, setEmail]     = useState(() => localStorage.getItem(LAST_EMAIL_KEY) || '');
+  const [pin, setPin]         = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const emailRef              = useRef<HTMLInputElement>(null);
+  const { login, error, loading } = useAuth();
+  const storeLogin = useAuthStore(s => s.login);
+  const navigate   = useNavigate();
+
+  useEffect(() => {
+    if (!email) emailRef.current?.focus();
+  }, [email]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = await login(email, pin);
+    if (user) {
+      localStorage.setItem(LAST_EMAIL_KEY, email);
+      storeLogin(user);
+      toast.success(`Welcome back, ${user.name}!`);
+      navigate(user.role === 'admin' ? '/dashboard' : '/sales');
+    }
+  };
+
+  return (
+    <>
+      <PageHeader title="Sign in" description="Enter your email and PIN to continue." />
+
+      {error && <ErrorBanner message={error} />}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Email" htmlFor="email">
+          <Input
+            ref={emailRef}
+            id="email"
+            type="email"
+            placeholder="you@pharmacy.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            disabled={loading}
+            autoComplete="email"
+            required
+            className="h-11"
+          />
+        </Field>
+
+        <PinRevealField
+          label="PIN"
+          value={pin}
+          onChange={setPin}
+          reveal={showPin}
+          onToggleReveal={() => setShowPin(v => !v)}
+          autoFocus={!!email}
+        />
+
+        <Button
+          type="submit"
+          disabled={loading || pin.length !== 5}
+          className="w-full h-11 gap-2 mt-2"
+        >
+          {loading ? <><Spinner /> Signing in…</> : <><LogIn className="size-4" /> Sign in</>}
+        </Button>
+      </form>
+
+      {/* Demo credentials */}
+      <div className="mt-7">
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-background px-3 text-[11px] uppercase tracking-widest text-muted-foreground/60">
+              Demo
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 space-y-1.5">
+          <DemoRow role="Admin"     cred="admin@pharmacy.com · 12345" />
+          <DemoRow role="Sales rep" cred="john@pharmacy.com · 56789"  />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function DemoRow({ role, cred }: { role: string; cred: string }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span className="font-medium text-foreground">{role}:</span>{' '}
+      {cred}
+    </p>
+  );
+}
+
+// ─── Setup Wizard ─────────────────────────────────────────────────────────────
+
+function SetupWizardForm({ onComplete }: { onComplete: () => void }) {
+  const [storeName,   setStoreName]   = useState('');
+  const [name,        setName]        = useState('');
+  const [email,       setEmail]       = useState('');
+  const [pin,         setPin]         = useState('');
+  const [confirmPin,  setConfirmPin]  = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error,       setError]       = useState('');
+  const [loading,     setLoading]     = useState(false);
+
+  const { register: registerUser } = useAuth();
+  const storeLogin = useAuthStore(s => s.login);
+  const navigate   = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (pin.length !== 5)     { setError('PIN must be exactly 5 digits.');   return; }
+    if (pin !== confirmPin)   { setError('PINs do not match.');               return; }
+
+    setLoading(true);
     try {
-      const response = await API.post('/auth/login', { email, password });
-      login(response.data.token, response.data.user);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      await StoreRepository.set('storeName', storeName);
+      const user = await registerUser({ name, email, pin, role: 'admin' });
+      if (user) {
+        localStorage.setItem(LAST_EMAIL_KEY, email);
+        storeLogin(user);
+        toast.success('Pharmacy setup complete!');
+        navigate('/dashboard');
+      }
+    } catch {
+      setError('Setup failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">🏥 Pharmacy POS</CardTitle>
-          <CardDescription>Point of Sale System</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <h2 className="text-lg font-semibold mb-4">Login</h2>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <Button 
-              type="submit"
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </Button>
-          </form>
+    <>
+      <PageHeader
+        title="Set up your pharmacy"
+        description="Create the admin account to get started."
+      />
 
-          <p className="text-sm text-center mt-4 text-gray-600">
-            Don't have an account? <Link to="/register" className="text-blue-600 hover:underline">Register as Sales Rep</Link>
-          </p>
+      {error && <ErrorBanner message={error} />}
 
-          <div className="mt-6 p-3 bg-gray-50 rounded-md text-sm text-gray-600 space-y-1">
-            <p>📝 Demo Credentials:</p>
-            <code className="block text-xs">Email: admin@pharmacy.com</code>
-            <code className="block text-xs">Password: admin@123</code>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Pharmacy name" htmlFor="storeName">
+          <Input
+            id="storeName"
+            placeholder="e.g. City Pharmacy"
+            value={storeName}
+            onChange={e => setStoreName(e.target.value)}
+            autoComplete="organization"
+            required
+            className="h-11"
+          />
+        </Field>
+
+        <Field label="Your name" htmlFor="adminName">
+          <Input
+            id="adminName"
+            placeholder="Jane Doe"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            autoComplete="name"
+            required
+            className="h-11"
+          />
+        </Field>
+
+        <Field label="Email" htmlFor="adminEmail">
+          <Input
+            id="adminEmail"
+            type="email"
+            placeholder="admin@pharmacy.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+            className="h-11"
+          />
+        </Field>
+
+        <PinRevealField
+          label="PIN (5 digits)"
+          value={pin}
+          onChange={setPin}
+          reveal={false}
+          onToggleReveal={() => {}}
+        />
+
+        <PinRevealField
+          label="Confirm PIN"
+          value={confirmPin}
+          onChange={setConfirmPin}
+          reveal={showConfirm}
+          onToggleReveal={() => setShowConfirm(v => !v)}
+        />
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full h-11 gap-2 mt-2"
+        >
+          {loading
+            ? <><Spinner /> Setting up…</>
+            : <><Store className="size-4" /> Create admin account</>}
+        </Button>
+      </form>
+    </>
   );
+}
+
+// ─── Root export — switches between login and setup ───────────────────────────
+
+function Login() {
+  const [isSetup, setIsSetup] = useState(false);
+
+  useEffect(() => {
+    UserRepository.getAdminCount().then(count => {
+      if (count === 0) setIsSetup(true);
+    });
+  }, []);
+
+  return isSetup
+    ? <SetupWizardForm onComplete={() => setIsSetup(false)} />
+    : <LoginForm />;
 }
 
 export default Login;

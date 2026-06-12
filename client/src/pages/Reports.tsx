@@ -1,41 +1,76 @@
 import React, { useState } from 'react';
 import { useReports } from '../hooks/useReports';
 import { ReportsData, Sale, TopProduct } from '../types';
-import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Skeleton } from '../components/ui/skeleton';
+import { PageHeader } from '../components/PageHeader';
+import {
+  BarChart3,
+  TrendingUp,
+  ClipboardList,
+  Package,
+  DollarSign,
+  AlertTriangle,
+} from 'lucide-react';
+
+const tabs = [
+  { key: 'daily', label: 'Daily' },
+  { key: 'weekly', label: 'Weekly' },
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'top', label: 'Top Products' },
+] as const;
 
 function Reports() {
   const { reports, getProductName, loading } = useReports();
   const [activeTab, setActiveTab] = useState('daily');
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-32" />
+        <div className="flex gap-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-24 rounded-md" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Reports</h1>
-      <div className="flex gap-2">
-        <Button variant={activeTab === 'daily' ? 'default' : 'outline'} onClick={() => setActiveTab('daily')}>
-          Daily Sales
-        </Button>
-        <Button variant={activeTab === 'weekly' ? 'default' : 'outline'} onClick={() => setActiveTab('weekly')}>
-          Weekly Sales
-        </Button>
-        <Button variant={activeTab === 'monthly' ? 'default' : 'outline'} onClick={() => setActiveTab('monthly')}>
-          Monthly Sales
-        </Button>
-        <Button variant={activeTab === 'inventory' ? 'default' : 'outline'} onClick={() => setActiveTab('inventory')}>
-          Inventory Status
-        </Button>
-        <Button variant={activeTab === 'top' ? 'default' : 'outline'} onClick={() => setActiveTab('top')}>
-          Top Products
-        </Button>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        icon={<BarChart3 className="size-4 text-primary" />}
+        title="Reports"
+        description="Sales and inventory analytics"
+      />
+
+      <div className="flex gap-1.5 bg-muted p-1 rounded-lg w-fit">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              activeTab === tab.key
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div>
         {activeTab === 'daily' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Daily Sales Report</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Daily Sales Report</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -48,7 +83,7 @@ function Reports() {
               <TableBody>
                 {(reports as ReportsData).daily.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">No sales today</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No sales today</TableCell>
                   </TableRow>
                 ) : (
                   (reports as ReportsData).daily.map((sale: Sale) => (
@@ -66,8 +101,8 @@ function Reports() {
         )}
 
         {activeTab === 'weekly' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Weekly Sales Report</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Weekly Sales Report</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -80,7 +115,7 @@ function Reports() {
               <TableBody>
                 {(reports as ReportsData).weekly.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">No sales this week</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No sales this week</TableCell>
                   </TableRow>
                 ) : (
                   (reports as ReportsData).weekly.map((sale: Sale) => (
@@ -98,8 +133,8 @@ function Reports() {
         )}
 
         {activeTab === 'monthly' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Monthly Sales Report</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Monthly Sales Report</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -112,7 +147,7 @@ function Reports() {
               <TableBody>
                 {(reports as ReportsData).monthly.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">No sales this month</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No sales this month</TableCell>
                   </TableRow>
                 ) : (
                   (reports as ReportsData).monthly.map((sale: Sale) => (
@@ -130,30 +165,33 @@ function Reports() {
         )}
 
         {activeTab === 'inventory' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Inventory Status Report</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Inventory Status</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Products</CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-5 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Package className="size-4" />
+                    Total Products
+                  </div>
                   <p className="text-3xl font-bold">{(reports as ReportsData).inventory.totalProducts}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Inventory Value</CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-5 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <DollarSign className="size-4" />
+                    Total Value
+                  </div>
                   <p className="text-3xl font-bold">₵{(reports as ReportsData).inventory.totalValue?.toFixed(2) || 0}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Low Stock Products</CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-5 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <AlertTriangle className="size-4" />
+                    Low Stock Items
+                  </div>
                   <p className="text-3xl font-bold">{(reports as ReportsData).inventory.lowStockProducts}</p>
                 </CardContent>
               </Card>
@@ -162,11 +200,12 @@ function Reports() {
         )}
 
         {activeTab === 'top' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Top 10 Products</h2>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Top 10 Products</h2>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>#</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Total Quantity Sold</TableHead>
                 </TableRow>
@@ -174,11 +213,12 @@ function Reports() {
               <TableBody>
                 {(reports as ReportsData).topProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center text-muted-foreground">No sales data</TableCell>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground py-8">No sales data</TableCell>
                   </TableRow>
                 ) : (
                   (reports as ReportsData).topProducts.map((product: TopProduct, idx: number) => (
                     <TableRow key={idx}>
+                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell>{getProductName(product.product_id)}</TableCell>
                       <TableCell>{product.totalQuantitySold}</TableCell>
                     </TableRow>

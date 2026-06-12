@@ -1,429 +1,544 @@
-import React, { useState } from 'react';
-import API from '../services/api';
-import { useToast } from '../components/Toast';
-import { useProducts } from '../hooks/useProducts';
-import { Product } from '../types';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
+import { Package, Upload, Plus, Trash2, Pencil, AlertTriangle, Clock, PackageX } from 'lucide-react';
 
-interface CsvProduct {
-  name: string;
-  category: string;
-  price: number;
-  stock_quantity: number;
-  expiry_date: string | null;
-}
+import { useProducts } from '../hooks/useProducts';
+import { CategoryRepository } from '../db/repository';
+import type { Product } from '../types';
+import { appendStockLog, THIRTY_DAYS, rowClass } from '../lib/inventory-utils';
+import { formatCurrency } from '../lib/currency';
+
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Skeleton } from '../components/ui/skeleton';
+import { Badge } from '../components/ui/badge';
+import { Pagination } from '../components/ui/pagination';
+import { PageHeader } from '../components/PageHeader';
+import { StatCard } from '../components/StatCard';
+
+import {
+  SortableHeader,
+  ExpiryCell,
+  StockCell,
+  Toolbar,
+  ConfirmDialog,
+  ProductFormDialog,
+  LowStockDialog,
+  InventoryAlerts,
+  CategoryManager,
+  CsvImportDialog,
+} from '../components/inventory';
+import type { SortKey, SortDir, ProductFormData, StatFilter } from '../components/inventory';
+
+const PAGE_SIZE = 15;
+type PendingStock = Map<number, { original: number; newQty: number }>;
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 function Inventory() {
-  const { addToast } = useToast();
   const { products, loading, addProduct, updateProduct, deleteProduct, refetch } = useProducts();
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    price: '',
-    stock_quantity: '',
-    expiry_date: ''
-  });
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvLoading, setCsvLoading] = useState(false);
-  const [csvError, setCsvError] = useState('');
-  const [csvSuccess, setCsvSuccess] = useState('');
-  const [csvPreview, setCsvPreview] = useState<CsvProduct[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  // ── Filters ─────────────────────────────────────────────────────────────────
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statFilter, setStatFilter] = useState<StatFilter>('all');
+  const [page, setPage] = useState(1);
+
+  // ── Product form ────────────────────────────────────────────────────────────
+  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<ProductFormData>({
+    name: '', category: '', price: '', stock_quantity: '',
+    min_stock: '', supplier: '', expiry_date: '',
+  });
+
+  // ── Selection & delete ──────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  // ── Categories ──────────────────────────────────────────────────────────────
+  const [categories, setCategories] = useState<string[]>([]);
+
+  // ── Pending stock ───────────────────────────────────────────────────────────
+  const [pendingStock, setPendingStock] = useState<PendingStock>(new Map());
+
+  // ── Modals ──────────────────────────────────────────────────────────────────
+  const [showLowStock, setShowLowStock] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
+
+  // ── Keyboard shortcut ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    setCategories(await CategoryRepository.getAll());
+  }, []);
+
+  useEffect(() => { loadCategories(); }, [loadCategories]);
+
+  // ── Derived: stats ──────────────────────────────────────────────────────────
+
+  const stats = useMemo(() => {
+    const now = Date.now();
+    return {
+      total: products.length,
+      lowStock: products.filter(p => p.stock_quantity <= (p.min_stock ?? 10) && p.stock_quantity > 0).length,
+      expiringSoon: products.filter(p => {
+        if (!p.expiry_date) return false;
+        const d = new Date(p.expiry_date).getTime();
+        return d > now && d - now <= THIRTY_DAYS;
+      }).length,
+      outOfStock: products.filter(p => p.stock_quantity === 0).length,
+    };
+  }, [products]);
+
+  const lowStockProducts = useMemo(
+    () => products.filter(p => p.stock_quantity <= (p.min_stock ?? 10)),
+    [products],
+  );
+
+  // ── Derived: filtered + sorted + paginated ──────────────────────────────────
+
+  const filteredProducts = useMemo(() => {
+    const now = Date.now();
+    let list = [...products];
+
+    // Stat filter
+    if (statFilter === 'low_stock') {
+      list = list.filter(p => p.stock_quantity <= (p.min_stock ?? 10) && p.stock_quantity > 0);
+    } else if (statFilter === 'expiring_soon') {
+      list = list.filter(p => {
+        if (!p.expiry_date) return false;
+        const d = new Date(p.expiry_date).getTime();
+        return d > now && d - now <= THIRTY_DAYS;
+      });
+    } else if (statFilter === 'out_of_stock') {
+      list = list.filter(p => p.stock_quantity === 0);
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all') {
+      list = list.filter(p => p.category === categoryFilter);
+    }
+
+    // Search
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    }
+
+    // Sort
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortKey === 'price') cmp = a.price - b.price;
+      else if (sortKey === 'stock_quantity') cmp = a.stock_quantity - b.stock_quantity;
+      else if (sortKey === 'expiry_date') {
+        const da = a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity;
+        const db = b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity;
+        cmp = da - db;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [products, statFilter, categoryFilter, search, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedProducts = filteredProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const allSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selectedIds.has(p.id));
+
+  // Reset page on any filter change
+  useEffect(() => { setPage(1); }, [search, categoryFilter, statFilter, sortKey, sortDir]);
+
+  // ── Handlers: sort ──────────────────────────────────────────────────────────
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // ── Handlers: stat card clicks ──────────────────────────────────────────────
+
+  const handleStatClick = (filter: StatFilter) => {
+    setStatFilter(prev => prev === filter ? 'all' : filter);
+  };
+
+  // ── Handlers: product form ──────────────────────────────────────────────────
+
+  const resetForm = () => {
+    setFormData({ name: '', category: '', price: '', stock_quantity: '', min_stock: '', supplier: '', expiry_date: '' });
+    setEditingId(null);
+    setShowFormDialog(false);
+  };
+
+  const openEditDialog = (p: Product) => {
+    setFormData({
+      name: p.name, category: p.category,
+      price: String(p.price), stock_quantity: String(p.stock_quantity),
+      min_stock: p.min_stock != null ? String(p.min_stock) : '',
+      supplier: p.supplier || '', expiry_date: p.expiry_date || '',
+    });
+    setEditingId(p.id);
+    setShowFormDialog(true);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const productData: Omit<Product, 'id'> = {
-      name: formData.name,
-      category: formData.category,
+    const data = {
+      name: formData.name, category: formData.category,
       price: parseFloat(formData.price),
       stock_quantity: parseInt(formData.stock_quantity, 10),
-      expiry_date: formData.expiry_date || null
+      min_stock: formData.min_stock ? parseInt(formData.min_stock, 10) : undefined,
+      supplier: formData.supplier || undefined,
+      expiry_date: formData.expiry_date || null,
     };
     try {
       if (editingId) {
-        await updateProduct(editingId, productData);
-        setEditingId(null);
+        await updateProduct(editingId, data);
+        toast.success('Product updated');
       } else {
-        await addProduct(productData);
+        await addProduct(data as Omit<Product, 'id'>);
+        toast.success('Product added');
       }
-      setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
-    } catch (error: any) {
-      console.error('Error saving product:', error);
-      addToast('Error saving product', 'error');
+      resetForm();
+    } catch (err: any) {
+      toast.error(err.message || 'Error saving product');
     }
   };
 
-  const handleEdit = (product: Product) => {
-    setFormData({
-      name: product.name,
-      category: product.category,
-      price: String(product.price),
-      stock_quantity: String(product.stock_quantity),
-      expiry_date: product.expiry_date || ''
+  // ── Handlers: delete ────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProduct(deleteTarget.id);
+      setDeleteTarget(null);
+      toast.success('Product deleted');
+    } catch (err: any) { toast.error(err.message || 'Error deleting'); }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const id of selectedIds) await deleteProduct(id);
+      const n = selectedIds.size;
+      setSelectedIds(new Set());
+      setShowBulkDelete(false);
+      toast.success(`Deleted ${n} product${n !== 1 ? 's' : ''}`);
+    } catch (err: any) { toast.error(err.message || 'Error deleting products'); }
+  };
+
+  // ── Handlers: stock changes ─────────────────────────────────────────────────
+
+  const handleStockDelta = (product: Product, delta: number) => {
+    setPendingStock(prev => {
+      const next = new Map(prev);
+      const existing = next.get(product.id);
+      const current = existing?.newQty ?? product.stock_quantity;
+      const updated = current + delta;
+      if (updated < 0) return next;
+      if (updated === product.stock_quantity) next.delete(product.id);
+      else next.set(product.id, { original: product.stock_quantity, newQty: updated });
+      return next;
     });
-    setEditingId(product.id);
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+  const handleSaveStock = async () => {
+    const entries = Array.from(pendingStock.entries());
+    if (!entries.length) return;
+    let saved = 0;
+    for (const [id, { original, newQty }] of entries) {
       try {
-        await deleteProduct(id);
-      } catch (error: any) {
-        console.error('Error deleting product:', error);
-        addToast('Error deleting product', 'error');
+        await updateProduct(id, { stock_quantity: newQty });
+        const product = products.find(p => p.id === id);
+        appendStockLog({
+          productId: id,
+          productName: product?.name ?? `Product #${id}`,
+          previousQty: original,
+          newQty,
+          delta: newQty - original,
+          reason: 'Bulk stock update',
+          timestamp: Date.now(),
+        });
+        saved++;
+      } catch {
+        toast.error(`Failed to update product #${id}`);
       }
     }
+    setPendingStock(new Map());
+    toast.success(`Updated stock for ${saved} product${saved !== 1 ? 's' : ''}`);
   };
 
-  const parseCSV = (text: string): CsvProduct[] => {
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) throw new Error('CSV file must have a header row and at least one data row');
-
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const requiredFields = ['name', 'category', 'price', 'stock_quantity'];
-    const missingFields = requiredFields.filter(field => !headers.includes(field));
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-    }
-
-    const data: CsvProduct[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim() === '') continue;
-      
-      const values = lines[i].split(',').map(v => v.trim());
-      const row: Record<string, string> = {};
-      headers.forEach((header, idx) => {
-        row[header] = values[idx];
-      });
-
-      if (!row.name || !row.category || !row.price || !row.stock_quantity) {
-        throw new Error(`Row ${i + 1} is missing required fields`);
-      }
-
-      if (isNaN(parseFloat(row.price)) || parseFloat(row.price) < 0) {
-        throw new Error(`Row ${i + 1}: Price must be a valid positive number`);
-      }
-
-      if (isNaN(parseInt(row.stock_quantity)) || parseInt(row.stock_quantity) < 0) {
-        throw new Error(`Row ${i + 1}: Stock quantity must be a valid positive integer`);
-      }
-
-      data.push({
-        name: row.name,
-        category: row.category,
-        price: parseFloat(row.price),
-        stock_quantity: parseInt(row.stock_quantity),
-        expiry_date: row.expiry_date || null
-      });
-    }
-
-    return data;
+  const handleDiscardStock = () => {
+    setPendingStock(new Map());
+    toast.info('Stock changes discarded');
   };
 
-  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ── Loading skeleton ────────────────────────────────────────────────────────
 
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Please select a .csv file');
-      setCsvFile(null);
-      return;
-    }
+  if (loading) return (
+    <div className="p-6 space-y-6">
+      <Skeleton className="h-8 w-52" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
+      </div>
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-72 w-full rounded-xl" />
+    </div>
+  );
 
-    setCsvFile(file);
-    setCsvError('');
-    setCsvSuccess('');
-
-    try {
-      const text = await file.text();
-      const data = parseCSV(text);
-      setCsvPreview(data);
-      setShowPreview(true);
-    } catch (error: any) {
-      setCsvError(error.message);
-      setCsvPreview([]);
-      setShowPreview(false);
-    }
-  };
-
-  const handleCsvDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('drag-over');
-  };
-
-  const handleCsvDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.currentTarget.classList.remove('drag-over');
-  };
-
-  const handleCsvDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-over');
-    
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      const input = document.getElementById('csv-file-input') as HTMLInputElement;
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      input.files = dataTransfer.files;
-
-      if (!file.name.endsWith('.csv')) {
-        setCsvError('Please select a .csv file');
-        setCsvFile(null);
-        return;
-      }
-
-      setCsvFile(file);
-      setCsvError('');
-      setCsvSuccess('');
-
-      try {
-        const text = await file.text();
-        const data = parseCSV(text);
-        setCsvPreview(data);
-        setShowPreview(true);
-      } catch (error: any) {
-        setCsvError(error.message);
-        setCsvPreview([]);
-        setShowPreview(false);
-      }
-    }
-  };
-
-  const handleCsvUpload = async () => {
-    if (csvPreview.length === 0) {
-      setCsvError('No valid data to upload');
-      return;
-    }
-
-    try {
-      setCsvLoading(true);
-      setCsvError('');
-
-      const response = await API.post('/inventory/batch-import', { products: csvPreview });
-
-      addToast(`Successfully imported ${response.data.importedCount} products!`, 'success');
-      setCsvFile(null);
-      setCsvPreview([]);
-      setShowPreview(false);
-      (document.getElementById('csv-file-input') as HTMLInputElement).value = '';
-      refetch();
-    } catch (error: any) {
-      setCsvError(error.response?.data?.message || 'Error importing products. Please try again.');
-    } finally {
-      setCsvLoading(false);
-    }
-  };
-
-  if (loading) return <div className="p-6">Loading...</div>;
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Inventory Management</h1>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? 'Edit Product' : 'Add New Product'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <Input
-                  type="text"
-                  name="name"
-                  placeholder="Product Name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                />
-                <Input
-                  type="text"
-                  name="category"
-                  placeholder="Category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                />
-                <Input
-                  type="number"
-                  name="price"
-                  placeholder="Price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  required
-                />
-                <Input
-                  type="number"
-                  name="stock_quantity"
-                  placeholder="Stock Quantity"
-                  value={formData.stock_quantity}
-                  onChange={handleInputChange}
-                  required
-                />
-                <Input
-                  type="date"
-                  name="expiry_date"
-                  value={formData.expiry_date}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit">{editingId ? 'Update' : 'Add'} Product</Button>
-                {editingId && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEditingId(null);
-                      setFormData({ name: '', category: '', price: '', stock_quantity: '', expiry_date: '' });
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+    <div className="p-6 space-y-6">
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Batch Import Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
-              onDragOver={handleCsvDragOver}
-              onDragLeave={handleCsvDragLeave}
-              onDrop={handleCsvDrop}
-              onClick={() => document.getElementById('csv-file-input')?.click()}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-3xl">📁</p>
-                <p className="text-muted-foreground">Drag and drop CSV file here or click to select</p>
-                <input
-                  id="csv-file-input"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCsvFileChange}
-                  className="hidden"
-                />
+      {/* Page header */}
+      <PageHeader
+        icon={<Package className="size-4 text-primary" />}
+        title="Inventory"
+        description="Products, stock levels, and categories"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCsvImport(true)}>
+              <Upload className="size-4" /> Import CSV
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => { resetForm(); setShowFormDialog(true); }}>
+              <Plus className="size-4" /> Add Product
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+        <StatCard
+          icon={<AlertTriangle className="size-4 text-destructive" />}
+          label="Low stock"
+          value={stats.lowStock}
+          accent={stats.lowStock > 0 ? 'bg-destructive' : undefined}
+          onClick={() => handleStatClick('low_stock')}
+        />
+        <StatCard
+          icon={<Clock className="size-4 text-amber-600" />}
+          label="Expiring soon"
+          value={stats.expiringSoon}
+          accent={stats.expiringSoon > 0 ? 'bg-amber-500' : undefined}
+          onClick={() => handleStatClick('expiring_soon')}
+        />
+        <StatCard
+          icon={<PackageX className="size-4 text-destructive" />}
+          label="Out of stock"
+          value={stats.outOfStock}
+          accent={stats.outOfStock > 0 ? 'bg-destructive' : undefined}
+          onClick={() => handleStatClick('out_of_stock')}
+        />
+        <StatCard
+          icon={<Package className="size-4 text-primary" />}
+          label="Total products"
+          value={stats.total}
+          accent="bg-primary"
+          onClick={() => setStatFilter('all')}
+        />
+      </div>
+
+      {/* Alerts */}
+      <InventoryAlerts products={products} />
+
+      {/* Unified toolbar */}
+      <Toolbar
+        search={search}
+        onSearchChange={setSearch}
+        categoryFilter={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        categories={categories}
+        statFilter={statFilter}
+        onStatFilterChange={setStatFilter}
+        selectedCount={selectedIds.size}
+        pendingCount={pendingStock.size}
+        onSelectAll={() => setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
+        onDeselectAll={() => setSelectedIds(new Set())}
+        onDeleteSelected={() => setShowBulkDelete(true)}
+        onSavePending={handleSaveStock}
+        onDiscardPending={handleDiscardStock}
+      />
+
+      {/* Products table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-foreground">
+            Products
+            <span className="ml-1.5 font-normal text-muted-foreground">({filteredProducts.length})</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Package className="size-10 text-muted-foreground/30" />
+              <div>
+                <p className="font-medium text-foreground">No products yet</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">Add your first product or import from CSV.</p>
               </div>
-            </div>
-
-            {csvError && <div className="mt-4 text-red-600">❌ {csvError}</div>}
-            {csvSuccess && <div className="mt-4 text-green-600">{csvSuccess}</div>}
-
-            {showPreview && csvPreview.length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-semibold mb-2">Preview ({csvPreview.length} products)</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Expiry Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvPreview.slice(0, 5).map((product, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell>₵{product.price.toFixed(2)}</TableCell>
-                        <TableCell>{product.stock_quantity}</TableCell>
-                        <TableCell>{product.expiry_date || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {csvPreview.length > 5 && (
-                  <p className="text-sm text-muted-foreground mt-2">... and {csvPreview.length - 5} more products</p>
-                )}
-                <Button
-                  className="mt-4"
-                  onClick={handleCsvUpload}
-                  disabled={csvLoading}
-                >
-                  {csvLoading ? '⏳ Importing...' : `✅ Import ${csvPreview.length} Products`}
+              <div className="flex gap-2 mt-1">
+                <Button size="sm" className="gap-2" onClick={() => { resetForm(); setShowFormDialog(true); }}>
+                  <Plus className="size-4" /> Add product
+                </Button>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowCsvImport(true)}>
+                  <Upload className="size-4" /> Import CSV
                 </Button>
               </div>
-            )}
-
-            <div className="mt-6">
-              <details>
-                <summary className="cursor-pointer font-medium">📋 CSV Format Guide</summary>
-                <div className="mt-2 space-y-2 text-sm">
-                  <p><strong>Required columns:</strong></p>
-                  <ul className="list-disc list-inside">
-                    <li><code>name</code> - Product name</li>
-                    <li><code>category</code> - Product category</li>
-                    <li><code>price</code> - Product price (numbers only)</li>
-                    <li><code>stock_quantity</code> - Quantity in stock (whole numbers only)</li>
-                  </ul>
-                  <p><strong>Optional columns:</strong></p>
-                  <ul className="list-disc list-inside">
-                    <li><code>expiry_date</code> - Expiry date (YYYY-MM-DD format)</li>
-                  </ul>
-                  <p><strong>Example CSV:</strong></p>
-                  <pre className="bg-muted p-3 rounded text-xs overflow-x-auto">name,category,price,stock_quantity,expiry_date
-Paracetamol 500mg,Pain Relief,5.99,100,2025-12-31
-Aspirin 100mg,Pain Relief,3.50,50,2025-11-15
-Vitamin C 1000mg,Supplements,8.99,75,
-Antibiotic Cream,Topical,2.99,30,2026-06-30</pre>
-                </div>
-              </details>
             </div>
-          </CardContent>
-        </Card>
+          ) : filteredProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+              <Package className="size-8 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">No products match the current filters</p>
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setCategoryFilter('all'); setStatFilter('all'); }}>
+                Clear all filters
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10 pl-4">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={() => allSelected
+                          ? setSelectedIds(new Set())
+                          : setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
+                        className="size-4 cursor-pointer accent-primary rounded"
+                      />
+                    </TableHead>
+                    <SortableHeader col="name" label="Name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                    <TableHead>Category</TableHead>
+                    <SortableHeader col="price" label="Price" current={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableHeader col="stock_quantity" label="Stock" current={sortKey} dir={sortDir} onSort={handleSort} />
+                    <SortableHeader col="expiry_date" label="Expiry" current={sortKey} dir={sortDir} onSort={handleSort} />
+                    <TableHead>Supplier</TableHead>
+                    <TableHead className="w-20" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedProducts.map(p => (
+                    <TableRow key={p.id} className={rowClass(p, selectedIds, pendingStock)}>
+                      <TableCell className="pl-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(p.id)}
+                          onChange={() => {
+                            const next = new Set(selectedIds);
+                            next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+                            setSelectedIds(next);
+                          }}
+                          className="size-4 cursor-pointer accent-primary rounded"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell><Badge variant="secondary">{p.category}</Badge></TableCell>
+                      <TableCell className="tabular-nums">{formatCurrency(p.price)}</TableCell>
+                      <TableCell>
+                        <StockCell
+                          product={p}
+                          pendingQty={pendingStock.get(p.id)?.newQty}
+                          onDelta={delta => handleStockDelta(p, delta)}
+                        />
+                      </TableCell>
+                      <TableCell><ExpiryCell date={p.expiry_date} /></TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.supplier || '\u2014'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => openEditDialog(p)}>
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="size-7 p-0 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(p)}>
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
 
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Products List</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Expiry Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(products as Product[]).map(product => (
-                <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>₵{product.price}</TableCell>
-                  <TableCell className={product.stock_quantity < 10 ? 'text-red-600 font-semibold' : ''}>
-                    {product.stock_quantity}
-                  </TableCell>
-                  <TableCell>{new Date(product.expiry_date as string).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>Edit</Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(product.id)}>Delete</Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {(safePage - 1) * PAGE_SIZE + 1}-
+                    {Math.min(safePage * PAGE_SIZE, filteredProducts.length)} of {filteredProducts.length}
+                  </p>
+                  <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Categories */}
+      <CategoryManager categories={categories} onCategoriesChange={setCategories} />
+
+      {/* ══ Dialogs ══════════════════════════════════════════════════════════════ */}
+
+      <CsvImportDialog
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        onImportComplete={refetch}
+        categories={categories}
+      />
+
+      <ProductFormDialog
+        open={showFormDialog}
+        onOpenChange={open => { if (!open) resetForm(); }}
+        editingId={editingId}
+        formData={formData}
+        onFormChange={setFormData}
+        onSubmit={handleFormSubmit}
+        onReset={resetForm}
+        categories={categories}
+      />
+
+      <LowStockDialog
+        open={showLowStock}
+        onOpenChange={setShowLowStock}
+        products={lowStockProducts}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={open => !open && setDeleteTarget(null)}
+        title="Delete product"
+        description={<>Delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This cannot be undone.</>}
+        onConfirm={handleDelete}
+        confirmLabel="Delete"
+      />
+
+      <ConfirmDialog
+        open={showBulkDelete}
+        onOpenChange={setShowBulkDelete}
+        title={`Delete ${selectedIds.size} product${selectedIds.size !== 1 ? 's' : ''}`}
+        description={`Permanently delete ${selectedIds.size} product${selectedIds.size !== 1 ? 's' : ''}. This cannot be undone.`}
+        onConfirm={handleBulkDelete}
+        confirmLabel="Delete all"
+      />
+
     </div>
   );
 }

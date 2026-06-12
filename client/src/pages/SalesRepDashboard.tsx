@@ -1,10 +1,22 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '../hooks/useProducts';
 import { useAuthStore } from '../store/authStore';
 import { Product, Sale } from '../types';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Skeleton } from '../components/ui/skeleton';
+import { StatCard } from '../components/StatCard';
+import { PageHeader } from '../components/PageHeader';
+import {
+  DollarSign,
+  ShoppingCart,
+  Package,
+  TrendingUp,
+  Target,
+  ClipboardList,
+} from 'lucide-react';
 
 function SalesRepDashboard() {
   const user = useAuthStore((state) => state.user);
@@ -24,56 +36,70 @@ function SalesRepDashboard() {
 
   const recentSales = mySales.slice(-5).reverse();
 
-  if (loading) return <div className="p-6"><p>Loading your dashboard...</p></div>;
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-64" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <div className="h-1 bg-[oklch(0.55_0.16_220/0.1)]" />
+              <CardContent className="p-5 space-y-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-3 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">💼 Welcome, Sales Representative</h1>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        icon={<ClipboardList className="size-4 text-primary" />}
+        title={`Welcome, ${user?.name?.split(' ')[0] || 'Sales Rep'}`}
+        description="Here's your sales overview"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>📊 Today's Sales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">GHS {todaysSales.toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground">Your earnings today</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>🔢 Sales Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{mySales.length}</p>
-            <p className="text-sm text-muted-foreground">Total transactions</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>📦 Products Available</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{products.length}</p>
-            <p className="text-sm text-muted-foreground">Ready to sell</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>💰 Estimated Commission</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">GHS {(todaysSales * 0.05).toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground">5% on sales</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          icon={<DollarSign className="size-4 text-success" />}
+          label="Today's Sales"
+          value={`GHS ${todaysSales.toFixed(2)}`}
+          sub="Your revenue today"
+          accent="bg-success"
+        />
+        <StatCard
+          icon={<ShoppingCart className="size-4 text-primary" />}
+          label="Transactions"
+          value={mySales.length}
+          sub="Total sales recorded"
+          accent="bg-primary"
+        />
+        <StatCard
+          icon={<Package className="size-4 text-primary" />}
+          label="Products Available"
+          value={products.length}
+          sub="Ready to sell"
+          accent="bg-primary"
+        />
+        <StatCard
+          icon={<Target className="size-4 text-warning" />}
+          label="Commission"
+          value={`GHS ${(todaysSales * 0.05).toFixed(2)}`}
+          sub="5% on sales"
+          accent="bg-warning"
+        />
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-4">📈 Your Recent Sales</h2>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="size-4 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Recent Sales</h2>
+        </div>
         {recentSales.length > 0 ? (
           <Table>
             <TableHeader>
@@ -96,43 +122,51 @@ function SalesRepDashboard() {
             </TableBody>
           </Table>
         ) : (
-          <p className="py-5 text-center text-muted-foreground">
-            No sales yet. Start by accessing the Sales page to record your first transaction!
-          </p>
+          <div className="text-center py-12 text-muted-foreground">
+            <ShoppingCart className="size-8 mx-auto mb-3 opacity-40" />
+            <p className="text-sm">No sales yet</p>
+            <p className="text-xs mt-1">Start by recording your first transaction</p>
+          </div>
         )}
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-4">⚡ Quick Actions</h2>
-        <div className="flex gap-4">
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>📤 Record Sale</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-2">Log a new product sale</p>
-              <a href="/sales" className="text-sm text-primary hover:underline">Go to Sales →</a>
-            </CardContent>
-          </Card>
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>📋 View Inventory</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-2">Check available products</p>
-              <a href="/inventory" className="text-sm text-primary hover:underline">Check Inventory →</a>
-            </CardContent>
-          </Card>
-          <Card className="flex-1">
-            <CardHeader>
-              <CardTitle>📊 Daily Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-2">View today's performance</p>
-              <a href="/dashboard" className="text-sm text-primary hover:underline">Refresh Stats →</a>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <ShoppingCart className="size-4 text-primary" />
+              Record Sale
+            </div>
+            <p className="text-xs text-muted-foreground">Log a new product sale</p>
+            <Link to="/sales" className="text-xs text-primary hover:underline inline-block mt-1">
+              Go to Sales {'\u2192'}
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Package className="size-4 text-primary" />
+              View Inventory
+            </div>
+            <p className="text-xs text-muted-foreground">Check available products</p>
+            <Link to="/inventory" className="text-xs text-primary hover:underline inline-block mt-1">
+              Check Inventory {'\u2192'}
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <TrendingUp className="size-4 text-primary" />
+              Daily Summary
+            </div>
+            <p className="text-xs text-muted-foreground">View today's performance</p>
+            <Link to="/dashboard" className="text-xs text-primary hover:underline inline-block mt-1">
+              Refresh Stats {'\u2192'}
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

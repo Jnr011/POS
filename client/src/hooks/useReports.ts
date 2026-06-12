@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import API from '../services/api';
+import { ReportsRepository } from '../db/repository';
+import { db } from '../db';
 import { ReportsData } from '../types';
 
 export function useReports() {
@@ -13,28 +14,55 @@ export function useReports() {
   const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
-      const [daily, weekly, monthly, topProducts, inventory, productsRes] = await Promise.all([
-        API.get<{ dailySales: ReportsData['daily'] }>('/reports/sales/daily'),
-        API.get<{ weeklySales: ReportsData['weekly'] }>('/reports/sales/weekly'),
-        API.get<{ monthlySales: ReportsData['monthly'] }>('/reports/sales/monthly'),
-        API.get<{ topProducts: ReportsData['topProducts'] }>('/reports/top-products'),
-        API.get<ReportsData['inventory']>('/reports/inventory/status'),
-        API.get<{ products: Array<{ id: number; name: string }> }>('/inventory')
+
+      const [
+        dailySales,
+        weeklySales,
+        monthlySales,
+        topProducts,
+        inventoryTotal,
+        lowStock,
+        products,
+      ] = await Promise.all([
+        db.sales.filter(s => {
+          const today = new Date().toISOString().split('T')[0];
+          return s.date.startsWith(today);
+        }).toArray(),
+        db.sales.filter(s => {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return new Date(s.date) >= weekAgo;
+        }).toArray(),
+        db.sales.filter(s => {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          return new Date(s.date) >= monthAgo;
+        }).toArray(),
+        ReportsRepository.getTopProducts(10),
+        ReportsRepository.getInventoryValue(),
+        ReportsRepository.getLowStockCount(),
+        db.products.toArray(),
       ]);
 
-      const products = productsRes.data.products || [];
       const map: Record<number, string> = {};
       products.forEach(p => { map[p.id] = p.name; });
       setProductMap(map);
 
       setReports({
-        daily: daily.data.dailySales || [],
-        weekly: weekly.data.weeklySales || [],
-        monthly: monthly.data.monthlySales || [],
-        topProducts: topProducts.data.topProducts || [],
-        inventory: (inventory.data || {}) as ReportsData['inventory']
+        daily: dailySales,
+        weekly: weeklySales,
+        monthly: monthlySales,
+        topProducts: topProducts.map(p => ({
+          product_id: p.productId,
+          totalQuantitySold: p.totalSold,
+        })),
+        inventory: {
+          totalProducts: products.length,
+          totalValue: inventoryTotal,
+          lowStockProducts: lowStock,
+        },
       });
-    } catch (err: unknown) {
+    } catch (err) {
       console.error('Error fetching reports:', err);
     } finally {
       setLoading(false);
@@ -45,7 +73,5 @@ export function useReports() {
 
   const getProductName = useCallback((id: number) => productMap[id] || `Product #${id}`, [productMap]);
 
-  const refetch = fetchReports;
-
-  return { reports, productMap, getProductName, loading, refetch };
+  return { reports, productMap, getProductName, loading, refetch: fetchReports };
 }

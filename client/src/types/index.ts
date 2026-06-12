@@ -5,17 +5,39 @@ export interface Product {
   price: number;
   stock_quantity: number;
   expiry_date?: string | null;
-  _pending?: boolean;
+  barcode?: string;
+  min_stock?: number;
+  supplier?: string;
+  updatedAt: number;
+  syncedAt?: number;
+  syncStatus: 'synced' | 'pending' | 'conflict';
+  deviceId?: string;
+}
+
+export interface CartItem {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  stock_quantity: number;
+  quantity: number;
 }
 
 export interface Sale {
   id: number;
-  product_id: number;
   user_id: number;
-  quantity: number;
+  items: CartItem[];
   total_price: number;
+  tax: number;
+  grand_total: number;
+  payment_method: 'cash' | 'card' | 'mobile_money';
+  amount_tendered: number;
+  change_due: number;
   date: string;
-  _pending?: boolean;
+  updatedAt: number;
+  syncedAt?: number;
+  syncStatus: 'synced' | 'pending' | 'conflict';
+  deviceId?: string;
 }
 
 export interface User {
@@ -23,6 +45,29 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'sales';
+  pinHash: string;
+  isActive: boolean;
+  updatedAt: number;
+  syncedAt?: number;
+  syncStatus: 'synced' | 'pending' | 'conflict';
+  deviceId?: string;
+}
+
+export interface StoreInfo {
+  key: string;
+  value: string;
+}
+
+export interface StockAdjustment {
+  id?: number;
+  productId: number;
+  delta: number;
+  reason: string;
+  previousQty: number;
+  newQty: number;
+  userId: number;
+  timestamp: number;
+  syncedAt?: number;
 }
 
 export interface TopProduct {
@@ -51,6 +96,8 @@ export interface SyncQueueItem {
   recordId: number;
   timestamp: number;
   data: Record<string, unknown> | null;
+  retryCount?: number;
+  deviceId?: string;
 }
 
 export interface ApiResponse<T> {

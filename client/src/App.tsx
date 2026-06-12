@@ -1,29 +1,36 @@
-import React from 'react';
-import './App.css';
-import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
-import { ToastProvider } from './components/Toast';
-import { ConnectivityIndicator } from './components/ConnectivityIndicator';
+import React, { useEffect, useState } from 'react';
+import { Toaster } from './components/ui/sonner';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useAuthStore } from './store/authStore';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSync } from './hooks/useSync';
+import { seedDatabase } from './db/seed';
+import AuthLayout from './layouts/AuthLayout';
+import AppLayout from './layouts/AppLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import SalesRepDashboard from './pages/SalesRepDashboard';
 import Sales from './pages/Sales';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
-import { User } from './types';
 
 function AppContent() {
-  const { isAuthenticated, user, logout } = useAuthStore() as {
-    isAuthenticated: boolean;
-    user: User | null;
-    logout: () => void;
-  };
+  const { isAuthenticated, user } = useAuthStore();
+  const [seeding, setSeeding] = useState(true);
+
+  useEffect(() => {
+    seedDatabase().then(() => setSeeding(false));
+  }, []);
 
   useSync();
+
+  if (seeding) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   const DashboardRoute = () => {
     if (!isAuthenticated) return <Navigate to="/login" />;
@@ -31,58 +38,30 @@ function AppContent() {
   };
 
   return (
-    <div className="App">
-      {isAuthenticated && <Navbar onLogout={logout} />}
-      <div className="app-content">
-        {isAuthenticated && <Sidebar userRole={user?.role} />}
-        <div className="main-content">
-          <Routes>
-          <Route 
-            path="/login" 
-            element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />}
-          />
-          <Route 
-            path="/register" 
-            element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />}
-          />
-          <Route 
-            path="/dashboard" 
-            element={<DashboardRoute />}
-          />
-          <Route 
-            path="/admin-dashboard" 
-            element={isAuthenticated && user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />}
-          />
-          <Route 
-            path="/sales-dashboard" 
-            element={isAuthenticated && user?.role === 'sales' ? <SalesRepDashboard /> : <Navigate to="/login" />}
-          />
-          <Route 
-            path="/sales" 
-            element={isAuthenticated ? <Sales /> : <Navigate to="/login" />}
-          />
-          <Route 
-            path="/inventory" 
-            element={isAuthenticated ? <Inventory /> : <Navigate to="/login" />}
-          />
-          <Route 
-            path="/reports" 
-            element={isAuthenticated && user?.role === 'admin' ? <Reports /> : <Navigate to="/login" />}
-          />
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-        </Routes>
-      </div>
-    </div>
-    <ConnectivityIndicator />
-  </div>
+    <Routes>
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} /> : <Login />} />
+      </Route>
+
+      <Route element={isAuthenticated ? <AppLayout /> : <Navigate to="/login" />}>
+        <Route path="/dashboard" element={<DashboardRoute />} />
+        <Route path="/sales" element={<Sales />} />
+        <Route path="/inventory" element={<Inventory />} />
+        <Route path="/reports" element={user?.role === 'admin' ? <Reports /> : <Navigate to="/dashboard" />} />
+      </Route>
+
+      <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} />} />
+      <Route path="*" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/sales'} />} />
+    </Routes>
   );
 }
 
 function App() {
   return (
-    <ToastProvider>
+    <ErrorBoundary>
       <AppContent />
-    </ToastProvider>
+      <Toaster richColors position="top-right" />
+    </ErrorBoundary>
   );
 }
 
