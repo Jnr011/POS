@@ -174,40 +174,12 @@ function LoginForm() {
         </Button>
       </form>
 
-      {/* Demo credentials */}
-      <div className="mt-7">
-        <div className="relative mb-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-background px-3 text-[11px] uppercase tracking-widest text-muted-foreground/60">
-              Demo
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 space-y-1.5">
-          <DemoRow role="Admin"     cred="admin@pharmacy.com · 12345" />
-          <DemoRow role="Sales rep" cred="john@pharmacy.com · 56789"  />
-        </div>
-      </div>
-
       <ChangePinDialog
         open={mustChangePin}
         onOpenChange={setMustChangePin}
         onCompleted={handlePinChanged}
       />
     </>
-  );
-}
-
-function DemoRow({ role, cred }: { role: string; cred: string }) {
-  return (
-    <p className="text-xs text-muted-foreground">
-      <span className="font-medium text-foreground">{role}:</span>{' '}
-      {cred}
-    </p>
   );
 }
 

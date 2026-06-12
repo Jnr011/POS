@@ -13,11 +13,13 @@ import {
   Sun,
   Moon,
   X,
+  Settings,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useStoreInfo } from '../hooks/useStoreInfo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +44,7 @@ const SHARED_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { label: 'Users', path: '/admin/users', icon: Users },
+  { label: 'Settings', path: '/admin/settings', icon: Settings },
   { label: 'Reports Overview', path: '/reports', icon: BarChart3 },
   { label: 'Sales Report', path: '/reports/sales', icon: TrendingUp },
   { label: 'Products', path: '/reports/products', icon: Package },
@@ -119,6 +122,7 @@ function Sidebar({ onClose }: SidebarProps) {
   const { user, logout }                  = useAuthStore();
   const { theme, toggle: toggleTheme }    = useThemeStore();
   const { relayConnected, pendingPushes } = useSyncStatus();
+  const { storeName } = useStoreInfo();
 
   const isAdmin  = user?.role === 'admin';
   const userName = user?.name ?? 'User';
@@ -137,7 +141,7 @@ function Sidebar({ onClose }: SidebarProps) {
           <Store className="size-[15px] text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-foreground leading-tight">Pharmacy POS</p>
+          <p className="text-[13px] font-semibold text-foreground leading-tight truncate">{storeName}</p>
           <p className="text-[10px] text-muted-foreground/60 leading-tight tracking-wide">Point of Sale</p>
         </div>
         {/* Close button — mobile only */}

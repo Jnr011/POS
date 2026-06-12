@@ -3,10 +3,12 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { ConnectivityIndicator } from '../components/ConnectivityIndicator';
+import { useStoreInfo } from '../hooks/useStoreInfo';
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { storeName } = useStoreInfo();
 
   const close = useCallback(() => setSidebarOpen(false), []);
   const open  = useCallback(() => setSidebarOpen(true),  []);
@@ -58,7 +60,7 @@ function AppLayout() {
           >
             <Menu className="size-5" />
           </button>
-          <span className="text-sm font-semibold text-foreground">Pharmacy POS</span>
+          <span className="text-sm font-semibold text-foreground">{storeName}</span>
         </header>
 
         <main className="flex-1 overflow-y-auto">

@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Toaster } from './components/ui/sonner';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuthStore } from './store/authStore';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSync } from './hooks/useSync';
-import { seedDatabase } from './db/seed';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
 import AdminDashboard from './pages/AdminDashboard';
@@ -19,24 +18,12 @@ import ReportsProducts from './pages/ReportsProducts';
 import ReportsInventory from './pages/ReportsInventory';
 import ReportsActivity from './pages/ReportsActivity';
 import UserManagement from './pages/UserManagement';
+import Settings from './pages/Settings';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuthStore();
-  const [seeding, setSeeding] = useState(true);
-
-  useEffect(() => {
-    seedDatabase().then(() => setSeeding(false));
-  }, []);
 
   useSync();
-
-  if (seeding) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
 
   const DashboardRoute = () => {
     if (!isAuthenticated) return <Navigate to="/login" />;
@@ -60,6 +47,7 @@ function AppContent() {
         <Route path="/reports/inventory" element={user?.role === 'admin' ? <ReportsInventory /> : <Navigate to="/dashboard" />} />
         <Route path="/reports/activity" element={user?.role === 'admin' ? <ReportsActivity /> : <Navigate to="/dashboard" />} />
         <Route path="/admin/users" element={user?.role === 'admin' ? <UserManagement /> : <Navigate to="/dashboard" />} />
+        <Route path="/admin/settings" element={user?.role === 'admin' ? <Settings /> : <Navigate to="/dashboard" />} />
       </Route>
 
       <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/dashboard' : '/pos'} />} />

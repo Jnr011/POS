@@ -27,10 +27,28 @@ const CSV_HEADER_LABELS: Record<string, string> = {
 
 const CSV_HEADER_REQUIRED = new Set(['name', 'category', 'price', 'stock_quantity']);
 
+const SEED_PRODUCTS = [
+  'Paracetamol 500mg,Pain Relief,5.99,100,20,PharmaDist Co.,2026-12-31',
+  'Aspirin 100mg,Pain Relief,3.50,8,20,PharmaDist Co.,2026-11-15',
+  'Ibuprofen 400mg,Pain Relief,4.99,75,15,MedSupply Ltd.,2026-10-01',
+  'Amoxicillin 500mg,Antibiotics,12.00,50,10,MedSupply Ltd.,2026-09-15',
+  'Ciprofloxacin 500mg,Antibiotics,15.00,0,10,MedSupply Ltd.,2027-01-01',
+  'Vitamin C 1000mg,Supplements,8.99,60,15,HealthVita Inc.,2027-06-30',
+  'Vitamin D3 2000IU,Supplements,7.49,45,15,HealthVita Inc.,2027-05-15',
+  'Omega-3 Fish Oil,Supplements,14.99,30,10,HealthVita Inc.,2026-08-20',
+  'Antibiotic Cream,Topical,2.99,25,10,TopiCare Labs,2026-06-30',
+  'Hydrocortisone Cream,Topical,4.50,20,10,TopiCare Labs,2026-12-01',
+  'Cough Syrup DM,Cough & Cold,6.99,40,10,Relief Pharma,2026-09-01',
+  'Antihistamine 10mg,Allergies,5.49,55,15,Relief Pharma,2027-03-01',
+  'Bandages Assorted,First Aid,3.99,10,20,SafeCare Inc.,',
+  'Digital Thermometer,Medical Devices,12.99,15,5,MedEquip Corp.,',
+  'Blood Pressure Monitor,Medical Devices,45.00,7,3,MedEquip Corp.,',
+];
+
 function buildTemplateCSV(headers: readonly string[]): string {
   const headerLine = headers.join(',');
-  const exampleLine = 'Paracetamol 500mg,Pain Relief,5.99,100,10,MedSupply Ltd,2025-12-31';
-  return `${headerLine}\n${exampleLine}\n`;
+  const rows = SEED_PRODUCTS.join('\n');
+  return `${headerLine}\n${rows}\n`;
 }
 
 function downloadCSV(content: string, filename: string) {

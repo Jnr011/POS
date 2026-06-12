@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Store, ShieldCheck, WifiOff, Zap } from 'lucide-react';
+import { useStoreInfo } from '../hooks/useStoreInfo';
 
 // ─── Feature callouts shown on the left panel ─────────────────────────────────
 
@@ -26,6 +27,7 @@ const FEATURES = [
 function AuthLayout() {
   const { pathname } = useLocation();
   const isLogin = pathname === '/login';
+  const { storeName } = useStoreInfo();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -39,7 +41,7 @@ function AuthLayout() {
             <Store className="size-[18px] text-white" />
           </div>
           <span className="text-white font-semibold text-[15px] tracking-tight">
-            Pharmacy POS
+            {storeName}
           </span>
         </div>
 
@@ -68,7 +70,7 @@ function AuthLayout() {
         </div>
 
         {/* Footer */}
-        <p className="text-[11px] text-white/30 tracking-wide">© {new Date().getFullYear()} Pharmacy POS</p>
+        <p className="text-[11px] text-white/30 tracking-wide">© {new Date().getFullYear()} {storeName}</p>
       </div>
 
       {/* ── Right panel — form ── */}
@@ -79,7 +81,7 @@ function AuthLayout() {
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10">
             <Store className="size-5 text-primary" />
           </div>
-          <span className="font-semibold text-base tracking-tight text-foreground">Pharmacy POS</span>
+          <span className="font-semibold text-base tracking-tight text-foreground">{storeName}</span>
         </div>
 
         {/* Form card */}
