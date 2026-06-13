@@ -83,9 +83,11 @@ function Reports() {
         description="Sales and inventory analytics"
       />
 
-      <PeriodSelector value={period} onChange={setPeriod} />
+      <div data-tour="reports-period">
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="reports-metrics" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           icon={<DollarSign className="size-4" />}
           label="Total Revenue"
@@ -116,7 +118,7 @@ function Reports() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div data-tour="reports-charts" className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <SalesTrendChart data={trend} />
           <TopProductsTable data={topProducts} />

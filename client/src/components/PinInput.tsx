@@ -57,8 +57,9 @@ export const PinInput = React.forwardRef<HTMLInputElement, PinInputProps>(
     };
 
     return (
-      <div className="flex gap-2 justify-center" id={id}>
+      <div className="flex gap-2 justify-center [&_input::-ms-reveal]:hidden [&_input::-ms-clear]:hidden [&_input::-webkit-credentials-auto-fill-button]:hidden [&_input::-webkit-textfield-decoration-container]:hidden" id={id}>
         <input ref={hiddenRef} tabIndex={-1} className="sr-only" aria-hidden />
+        <style>{`input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none}input[type="password"]::-webkit-credentials-auto-fill-button{visibility:hidden;pointer-events:none;position:absolute;right:0}`}</style>
         {Array.from({ length }).map((_, i) => {
           const digit = value[i] || '';
           return (

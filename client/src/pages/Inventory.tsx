@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Package, Upload, Plus, Trash2, Pencil, AlertTriangle, Clock, PackageX } from 'lucide-react';
 
 import { useProducts } from '../hooks/useProducts';
+import { useAuthStore } from '../store/authStore';
 import { CategoryRepository } from '../db/repository';
 import type { Product } from '../types';
 import { appendStockLog, THIRTY_DAYS, rowClass } from '../lib/inventory-utils';
@@ -38,6 +39,8 @@ type PendingStock = Map<number, { original: number; newQty: number }>;
 
 function Inventory() {
   const { products, loading, addProduct, updateProduct, deleteProduct, refetch } = useProducts();
+  const user = useAuthStore(s => s.user);
+  const readOnly = user?.role === 'sales';
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ── Filters ─────────────────────────────────────────────────────────────────
@@ -313,7 +316,7 @@ function Inventory() {
         icon={<Package className="size-4 text-primary" />}
         title="Inventory"
         description="Products, stock levels, and categories"
-        actions={
+        actions={!readOnly && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCsvImport(true)}>
               <Upload className="size-4" /> Import CSV
@@ -322,11 +325,11 @@ function Inventory() {
               <Plus className="size-4" /> Add Product
             </Button>
           </div>
-        }
+        )}
       />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+      <div data-tour="inventory-stats" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
         <StatCard
           icon={<AlertTriangle className="size-4 text-destructive" />}
           label="Low stock"
@@ -361,25 +364,30 @@ function Inventory() {
       <InventoryAlerts products={products} />
 
       {/* Unified toolbar */}
-      <Toolbar
-        search={search}
-        onSearchChange={setSearch}
-        categoryFilter={categoryFilter}
-        onCategoryChange={setCategoryFilter}
-        categories={categories}
-        statFilter={statFilter}
-        onStatFilterChange={setStatFilter}
-        selectedCount={selectedIds.size}
-        pendingCount={pendingStock.size}
-        onSelectAll={() => setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
-        onDeselectAll={() => setSelectedIds(new Set())}
-        onDeleteSelected={() => setShowBulkDelete(true)}
-        onSavePending={handleSaveStock}
-        onDiscardPending={handleDiscardStock}
-      />
+      <div data-tour="inventory-toolbar">
+        <Toolbar
+          search={search}
+          onSearchChange={setSearch}
+          categoryFilter={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          categories={categories}
+          statFilter={statFilter}
+          onStatFilterChange={setStatFilter}
+          selectedCount={selectedIds.size}
+          pendingCount={pendingStock.size}
+          onSelectAll={() => setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          onDeleteSelected={() => setShowBulkDelete(true)}
+          onSavePending={handleSaveStock}
+          onDiscardPending={handleDiscardStock}
+        />
+      </div>
+
+      {/* Categories (collapsible accordion, above table) */}
+      <CategoryManager categories={categories} onCategoriesChange={setCategories} readOnly={readOnly} />
 
       {/* Products table */}
-      <Card>
+      <Card data-tour="inventory-table">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-foreground">
             Products
@@ -392,16 +400,20 @@ function Inventory() {
               <Package className="size-10 text-muted-foreground/30" />
               <div>
                 <p className="font-medium text-foreground">No products yet</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">Add your first product or import from CSV.</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {readOnly ? 'There are no products in the inventory.' : 'Add your first product or import from CSV.'}
+                </p>
               </div>
-              <div className="flex gap-2 mt-1">
-                <Button size="sm" className="gap-2" onClick={() => { resetForm(); setShowFormDialog(true); }}>
-                  <Plus className="size-4" /> Add product
-                </Button>
-                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowCsvImport(true)}>
-                  <Upload className="size-4" /> Import CSV
-                </Button>
-              </div>
+              {!readOnly && (
+                <div className="flex gap-2 mt-1">
+                  <Button size="sm" className="gap-2" onClick={() => { resetForm(); setShowFormDialog(true); }}>
+                    <Plus className="size-4" /> Add product
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowCsvImport(true)}>
+                    <Upload className="size-4" /> Import CSV
+                  </Button>
+                </div>
+              )}
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
@@ -416,40 +428,44 @@ function Inventory() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10 pl-4">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={() => allSelected
-                          ? setSelectedIds(new Set())
-                          : setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
-                        className="size-4 cursor-pointer accent-primary rounded"
-                      />
-                    </TableHead>
+                    {!readOnly && (
+                      <TableHead className="w-10 pl-4">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={() => allSelected
+                            ? setSelectedIds(new Set())
+                            : setSelectedIds(new Set(paginatedProducts.map(p => p.id)))}
+                          className="size-4 cursor-pointer accent-primary rounded"
+                        />
+                      </TableHead>
+                    )}
                     <SortableHeader col="name" label="Name" current={sortKey} dir={sortDir} onSort={handleSort} />
                     <TableHead>Category</TableHead>
                     <SortableHeader col="price" label="Price" current={sortKey} dir={sortDir} onSort={handleSort} />
                     <SortableHeader col="stock_quantity" label="Stock" current={sortKey} dir={sortDir} onSort={handleSort} />
                     <SortableHeader col="expiry_date" label="Expiry" current={sortKey} dir={sortDir} onSort={handleSort} />
                     <TableHead>Supplier</TableHead>
-                    <TableHead className="w-20" />
+                    {!readOnly && <TableHead className="w-20" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedProducts.map(p => (
                     <TableRow key={p.id} className={rowClass(p, selectedIds, pendingStock)}>
-                      <TableCell className="pl-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(p.id)}
-                          onChange={() => {
-                            const next = new Set(selectedIds);
-                            next.has(p.id) ? next.delete(p.id) : next.add(p.id);
-                            setSelectedIds(next);
-                          }}
-                          className="size-4 cursor-pointer accent-primary rounded"
-                        />
-                      </TableCell>
+                      {!readOnly && (
+                        <TableCell className="pl-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(p.id)}
+                            onChange={() => {
+                              const next = new Set(selectedIds);
+                              next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+                              setSelectedIds(next);
+                            }}
+                            className="size-4 cursor-pointer accent-primary rounded"
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell><Badge variant="secondary">{p.category}</Badge></TableCell>
                       <TableCell className="tabular-nums">{formatCurrency(p.price)}</TableCell>
@@ -458,21 +474,24 @@ function Inventory() {
                           product={p}
                           pendingQty={pendingStock.get(p.id)?.newQty}
                           onDelta={delta => handleStockDelta(p, delta)}
+                          readOnly={readOnly}
                         />
                       </TableCell>
                       <TableCell><ExpiryCell date={p.expiry_date} /></TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.supplier || '\u2014'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => openEditDialog(p)}>
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="size-7 p-0 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(p)}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {!readOnly && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => openEditDialog(p)}>
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="size-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(p)}>
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -491,9 +510,6 @@ function Inventory() {
           )}
         </CardContent>
       </Card>
-
-      {/* Categories */}
-      <CategoryManager categories={categories} onCategoriesChange={setCategories} />
 
       {/* ══ Dialogs ══════════════════════════════════════════════════════════════ */}
 

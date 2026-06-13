@@ -1,7 +1,7 @@
 import { db } from './index';
 import { activityLogger } from './activityLogger';
 import { buildTrendData } from '../lib/trendBuilder';
-import { Product, Sale, User, CartItem, StockAdjustment } from '../types';
+import { Product, Sale, User, CartItem, StockAdjustment, ReturnRecord, ReturnItem } from '../types';
 import type {
   SalesTrendPoint,
   ProductPerformance,
@@ -14,7 +14,11 @@ import type {
 
 let deviceId = localStorage.getItem('deviceId');
 if (!deviceId) {
-  deviceId = crypto.randomUUID();
+  try {
+    deviceId = crypto.randomUUID();
+  } catch {
+    deviceId = 'pos-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
   localStorage.setItem('deviceId', deviceId);
 }
 
@@ -599,6 +603,64 @@ export const ReportsRepository = {
     return [...grouped.entries()]
       .map(([date, { total, count }]) => ({ date, total, count }))
       .sort((a, b) => a.date.localeCompare(b.date));
+  },
+};
+
+export const ReturnRepository = {
+  async getAll(): Promise<ReturnRecord[]> {
+    return db.returns.orderBy('date').reverse().toArray();
+  },
+
+  async processReturn(
+    saleId: number,
+    userId: number,
+    items: ReturnItem[],
+  ): Promise<ReturnRecord> {
+    const refundTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    return db.transaction('rw', db.returns, db.products, db.syncQueue, db.activityLog, async () => {
+      for (const item of items) {
+        const product = await db.products.get(item.productId);
+        if (product) {
+          const newStock = (product.stock_quantity ?? 0) + item.quantity;
+          await db.products.update(item.productId, {
+            stock_quantity: newStock,
+            updatedAt: now(),
+            syncStatus: 'pending',
+          });
+          await queueSync('update', 'products', item.productId, { stock_quantity: newStock } as unknown as Record<string, unknown>);
+        }
+      }
+
+      const record: ReturnRecord = {
+        saleId,
+        userId,
+        items,
+        refundTotal,
+        date: new Date().toISOString(),
+        updatedAt: now(),
+        syncStatus: 'pending',
+        deviceId: getDeviceId(),
+      };
+
+      const id = await db.returns.add(record as ReturnRecord);
+      await queueSync('create', 'returns', id, record as unknown as Record<string, unknown>);
+
+      activityLogger.log('return', `Return processed for Sale #${saleId} — ${items.length} items, ${refundTotal.toFixed(2)} refunded`, {
+        saleId, returnId: id, itemCount: items.length, refundTotal,
+      });
+
+      return { ...record, id };
+    });
+  },
+
+  async isReturnsAllowed(): Promise<boolean> {
+    try {
+      const val = await StoreRepository.get('allowReturns');
+      return val !== 'false';
+    } catch {
+      return true;
+    }
   },
 };
 

@@ -15,6 +15,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# ===== TAURI =====
+client/src-tauri/target/
+client/src-tauri/gen/
+
 # ===== DATABASE =====
 server/src/data/
 server/data/

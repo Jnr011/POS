@@ -122,22 +122,26 @@ function AdminDashboard() {
         description="Here's your pharmacy overview"
       />
 
-      <DashboardStatCards
-        revenueToday={revenueToday}
-        ordersToday={ordersToday}
-        lowStockCount={lowStockCount}
-        inventoryValue={inventoryValue}
-        onLowStockClick={() => navigate('/inventory')}
-      />
+      <div data-tour="dashboard-stats">
+        <DashboardStatCards
+          revenueToday={revenueToday}
+          ordersToday={ordersToday}
+          lowStockCount={lowStockCount}
+          inventoryValue={inventoryValue}
+          onLowStockClick={() => navigate('/inventory')}
+        />
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div data-tour="dashboard-chart" className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <SalesTrendMini data={trend} />
         <TopProductsMini data={topProducts} />
       </div>
 
-      <QuickActions />
+      <div data-tour="dashboard-actions">
+        <QuickActions />
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div data-tour="dashboard-transactions" className="grid gap-4 lg:grid-cols-2">
         <RecentTransactions data={recentSales} />
         <LowStockAlert
           lowStockProducts={lowStockProducts}

@@ -9,11 +9,17 @@ interface AuthStore {
   logout: () => void;
 }
 
-const stored = localStorage.getItem('authUser');
+let initialUser: User | null = null;
+try {
+  const stored = localStorage.getItem('authUser');
+  if (stored) initialUser = JSON.parse(stored);
+} catch {
+  localStorage.removeItem('authUser');
+}
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: stored ? JSON.parse(stored) : null,
-  isAuthenticated: !!stored,
+  user: initialUser,
+  isAuthenticated: !!initialUser,
 
   login: (user: User) => {
     localStorage.setItem('authUser', JSON.stringify(user));
@@ -23,10 +29,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: () => {
-    const user = JSON.parse(localStorage.getItem('authUser') || 'null') as User | null;
-    if (user) {
-      activityLogger.log('logout', `${user.name} logged out`);
-    }
+    try {
+      const stored = localStorage.getItem('authUser');
+      if (stored) {
+        const user = JSON.parse(stored) as User;
+        activityLogger.log('logout', `${user.name} logged out`);
+      }
+    } catch {}
     activityLogger.clearUser();
     localStorage.removeItem('authUser');
     set({ user: null, isAuthenticated: false });

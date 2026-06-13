@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -14,14 +15,14 @@ import {
   Moon,
   X,
   Settings,
+  ChevronDown,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useStoreInfo } from '../hooks/useStoreInfo';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { cn } from '@/lib/utils';
 
 interface NavItem {
   label: string;
@@ -33,7 +34,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-// ─── Nav config ───────────────────────────────────────────────────────────────
+// ─── Shared routes ───────────────────────────────────────────────────────────
 
 const SHARED_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -42,22 +43,22 @@ const SHARED_NAV: NavItem[] = [
   { label: 'Inventory', path: '/inventory', icon: Package },
 ];
 
-const ADMIN_NAV: NavItem[] = [
-  { label: 'Users', path: '/admin/users', icon: Users },
-  { label: 'Settings', path: '/admin/settings', icon: Settings },
-  { label: 'Reports Overview', path: '/reports', icon: BarChart3 },
+// ─── Report sub-routes ───────────────────────────────────────────────────────
+
+const REPORT_ROUTES: NavItem[] = [
   { label: 'Sales Report', path: '/reports/sales', icon: TrendingUp },
   { label: 'Products', path: '/reports/products', icon: Package },
   { label: 'Inventory', path: '/reports/inventory', icon: FileText },
+];
+
+// ─── Admin main routes ───────────────────────────────────────────────────────
+
+const ADMIN_MAIN: NavItem[] = [
+  { label: 'Users', path: '/admin/users', icon: Users },
   { label: 'Activity Log', path: '/reports/activity', icon: ClipboardList },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function useIsActive(path: string) {
-  const { pathname } = useLocation();
-  return pathname === path || pathname.startsWith(path + '/');
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function initials(name: string) {
   return name
@@ -68,32 +69,43 @@ function initials(name: string) {
     .toUpperCase() || 'U';
 }
 
-// ─── NavLink ──────────────────────────────────────────────────────────────────
+function useIsActive(path: string) {
+  const { pathname } = useLocation();
+  return pathname === path;
+}
 
-function NavLink({ item }: { item: NavItem }) {
+function useIsChildActive(paths: string[]) {
+  const { pathname } = useLocation();
+  return paths.some(p => pathname === p);
+}
+
+// ─── NavLink ─────────────────────────────────────────────────────────────────
+
+function NavLink({ item, sidebar }: { item: NavItem; sidebar?: boolean }) {
   const active = useIsActive(item.path);
   const Icon = item.icon;
 
   return (
     <Link
       to={item.path}
-      className={[
+      onClick={sidebar ? undefined : undefined}
+      className={cn(
         'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150',
         active
-          ? 'bg-sidebar-accent text-foreground font-medium'
-          : 'text-muted-foreground hover:text-foreground hover:bg-primary/[0.04]',
-      ].join(' ')}
+          ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
+          : 'text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/8',
+      )}
     >
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary-foreground" />
       )}
       <Icon
-        className={[
+        className={cn(
           'size-[18px] shrink-0 transition-colors duration-150',
           active
-            ? 'text-primary'
-            : 'text-muted-foreground/70 group-hover:text-foreground',
-        ].join(' ')}
+            ? 'text-primary-foreground'
+            : 'text-primary-foreground/60 group-hover:text-primary-foreground',
+        )}
       />
       <span className="flex-1 truncate">{item.label}</span>
     </Link>
@@ -106,7 +118,7 @@ function NavGroup({ label, items }: { label?: string; items: NavItem[] }) {
   return (
     <div className="flex flex-col gap-0.5">
       {label && (
-        <p className="mb-1 px-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50 select-none">
+        <p className="mb-1 px-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/50 select-none">
           {label}
         </p>
       )}
@@ -115,7 +127,90 @@ function NavGroup({ label, items }: { label?: string; items: NavItem[] }) {
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
+// ─── ReportsAccordion ────────────────────────────────────────────────────────
+
+function ReportsAccordion() {
+  const { pathname } = useLocation();
+  const childPaths = REPORT_ROUTES.map(r => r.path);
+  const overviewActive = useIsActive('/reports');
+  const childActive = useIsChildActive(childPaths);
+  const isExpanded = overviewActive || childActive;
+
+  const [open, setOpen] = useState(isExpanded);
+
+  useEffect(() => {
+    setOpen(isExpanded);
+  }, [isExpanded]);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <button
+        onClick={() => setOpen(prev => !prev)}
+        className={cn(
+          'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150 w-full text-left',
+          overviewActive
+            ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
+            : 'text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/8',
+        )}
+      >
+        {overviewActive && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary-foreground" />
+        )}
+        <BarChart3
+          className={cn(
+            'size-[18px] shrink-0 transition-colors duration-150',
+            overviewActive
+              ? 'text-primary-foreground'
+              : 'text-primary-foreground/60 group-hover:text-primary-foreground',
+          )}
+        />
+        <span className="flex-1 truncate">Reports</span>
+        <ChevronDown
+          className={cn(
+            'size-4 transition-transform duration-200',
+            open && 'rotate-180',
+            overviewActive
+              ? 'text-primary-foreground'
+              : 'text-primary-foreground/50',
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="ml-2 flex flex-col gap-0.5 border-l border-primary-foreground/15 pl-2">
+          {REPORT_ROUTES.map(route => {
+            const active = useIsActive(route.path);
+            const Icon = route.icon;
+            return (
+              <Link
+                key={route.path}
+                to={route.path}
+                className={cn(
+                  'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150',
+                  active
+                    ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
+                    : 'text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/8',
+                )}
+              >
+                <Icon
+                  className={cn(
+                    'size-[16px] shrink-0 transition-colors duration-150',
+                    active
+                      ? 'text-primary-foreground'
+                      : 'text-primary-foreground/60 group-hover:text-primary-foreground',
+                  )}
+                />
+                <span className="flex-1 truncate">{route.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar({ onClose }: SidebarProps) {
   const navigate = useNavigate();
@@ -133,23 +228,22 @@ function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <aside className="flex h-full w-[220px] flex-col bg-sidebar border-r border-border">
+    <aside className="flex h-full w-[220px] flex-col bg-primary text-primary-foreground">
 
       {/* ── Brand ── */}
       <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Store className="size-[15px] text-primary" />
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15">
+          <Store className="size-[15px] text-primary-foreground" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-foreground leading-tight truncate">{storeName}</p>
-          <p className="text-[10px] text-muted-foreground/60 leading-tight tracking-wide">Point of Sale</p>
+          <p className="text-[13px] font-semibold text-primary-foreground leading-tight truncate">{storeName}</p>
+          <p className="text-[10px] text-primary-foreground/60 leading-tight tracking-wide">Point of Sale</p>
         </div>
-        {/* Close button — mobile only */}
         {onClose && (
           <button
             onClick={onClose}
             aria-label="Close navigation"
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/[0.06] hover:text-foreground lg:hidden"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-primary-foreground/60 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground lg:hidden"
           >
             <X className="size-4" />
           </button>
@@ -163,29 +257,53 @@ function Sidebar({ onClose }: SidebarProps) {
         {isAdmin && (
           <div>
             <div className="mb-3 flex items-center gap-2">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/40 select-none">
+              <div className="h-px flex-1 bg-primary-foreground/15" />
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/40 select-none">
                 Admin
               </span>
-              <div className="h-px flex-1 bg-border" />
+              <div className="h-px flex-1 bg-primary-foreground/15" />
             </div>
-            <NavGroup items={ADMIN_NAV} />
+
+            <div className="flex flex-col gap-2">
+              <NavGroup items={ADMIN_MAIN} />
+              <ReportsAccordion />
+            </div>
           </div>
         )}
       </nav>
 
-      {/* ── User + Controls ── */}
-      <div className="border-t border-border px-3 pb-4 pt-3 space-y-0.5">
+      {/* ── Bottom controls ── */}
+      <div className="border-t border-primary-foreground/15 px-3 pb-4 pt-3 space-y-0.5">
 
-        <div className="mb-2 flex items-center gap-2.5 px-2 py-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary select-none">
+        {/* Settings */}
+        {isAdmin && (
+          <Link
+            to="/admin/settings"
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150',
+              useIsActive('/admin/settings')
+                ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
+                : 'text-primary-foreground/70 hover:bg-primary-foreground/8 hover:text-primary-foreground',
+            )}
+          >
+            <Settings className="size-4 shrink-0" />
+            <span>Settings</span>
+          </Link>
+        )}
+
+        {/* User card */}
+        <Link
+          to="/profile"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 mt-1 transition-colors duration-150 hover:bg-primary-foreground/8"
+        >
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15 text-[11px] font-semibold text-primary-foreground select-none">
             {initials(userName)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium text-foreground leading-snug">
+            <p className="truncate text-[13px] font-medium text-primary-foreground leading-snug">
               {userName}
             </p>
-            <p className="text-[10px] text-muted-foreground/70 leading-snug">
+            <p className="text-[10px] text-primary-foreground/60 leading-snug">
               {isAdmin ? 'Administrator' : 'Sales Rep'}
             </p>
           </div>
@@ -194,16 +312,16 @@ function Sidebar({ onClose }: SidebarProps) {
               ? 'Connected'
               : `Offline${pendingPushes > 0 ? ` · ${pendingPushes} pending` : ''}`
             }
-            className={[
+            className={cn(
               'size-2 shrink-0 rounded-full transition-colors duration-300',
-              relayConnected ? 'bg-accent' : 'bg-muted-foreground/30',
-            ].join(' ')}
+              relayConnected ? 'bg-accent' : 'bg-primary-foreground/30',
+            )}
           />
-        </div>
+        </Link>
 
         <button
           onClick={toggleTheme}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-primary/[0.04] hover:text-foreground"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-primary-foreground/70 transition-colors duration-150 hover:bg-primary-foreground/8 hover:text-primary-foreground"
         >
           {theme === 'dark'
             ? <Sun  className="size-4 shrink-0" />
@@ -213,7 +331,7 @@ function Sidebar({ onClose }: SidebarProps) {
 
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-destructive/[0.06] hover:text-destructive"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-primary-foreground/70 transition-colors duration-150 hover:bg-primary-foreground/10 hover:text-primary-foreground"
         >
           <LogOut className="size-4 shrink-0" />
           <span>Log out</span>

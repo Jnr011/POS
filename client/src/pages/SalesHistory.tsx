@@ -3,13 +3,15 @@ import { db } from '../db';
 import { UserRepository } from '../db/repository';
 import { PageHeader } from '../components/PageHeader';
 import { SaleDetailDialog } from '../components/SaleDetailDialog';
+import { ReturnDialog } from '../components/ReturnDialog';
 import { EmptyState } from '../components/ui/empty-state';
 import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User } from 'lucide-react';
+import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User, RotateCcw } from 'lucide-react';
 import type { Sale, User as UserType, CartItem } from '../types';
 import { formatCurrency } from '../lib/currency';
 import { format } from 'date-fns';
@@ -52,6 +54,7 @@ function SalesHistory() {
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +122,7 @@ function SalesHistory() {
         description={`${filtered.length} sale${filtered.length !== 1 ? 's' : ''} recorded`}
       />
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div data-tour="sales-search" className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -159,7 +162,7 @@ function SalesHistory() {
           description={search || methodFilter !== 'all' ? 'Try adjusting your filters' : 'Sales will appear here as they are recorded'}
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div data-tour="sales-table" className="rounded-xl border bg-card overflow-hidden">
           <ScrollArea className="max-h-[calc(100vh-280px)]">
             <Table>
               <TableHeader>
@@ -268,12 +271,20 @@ function SalesHistory() {
                                   )}
                                 </>
                               )}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedSale(sale); }}
-                                className="text-xs font-medium text-primary hover:underline underline-offset-4 mt-1"
-                              >
-                                View full details →
-                              </button>
+                              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSelectedSale(sale); }}
+                                  className="text-xs font-medium text-primary hover:underline underline-offset-4"
+                                >
+                                  View full details →
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setReturnSale(sale); }}
+                                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 underline-offset-4 hover:underline"
+                                >
+                                  <RotateCcw className="size-3" /> Return
+                                </button>
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -292,6 +303,11 @@ function SalesHistory() {
         users={users}
         open={!!selectedSale}
         onOpenChange={(open) => { if (!open) setSelectedSale(null); }}
+      />
+      <ReturnDialog
+        sale={returnSale}
+        open={!!returnSale}
+        onOpenChange={(open) => { if (!open) setReturnSale(null); }}
       />
     </div>
   );

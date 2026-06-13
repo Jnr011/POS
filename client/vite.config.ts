@@ -6,6 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const host = process.env.TAURI_DEV_HOST
 
 export default defineConfig({
   plugins: [
@@ -13,6 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         runtimeCaching: [
@@ -29,8 +31,15 @@ export default defineConfig({
       manifest: {
         name: 'Pharmacy POS',
         short_name: 'POS',
+        description: 'Offline-first Point of Sale System',
         display: 'standalone',
         theme_color: '#1a1a2e',
+        background_color: '#ffffff',
+        start_url: '/',
+        scope: '/',
+        icons: [
+          { src: 'favicon.ico', sizes: '64x64', type: 'image/x-icon' },
+        ]
       }
     })
   ],
@@ -40,10 +49,16 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'axios']
+    include: ['react', 'react-dom', 'react-router-dom', 'axios', 'react-joyride']
   },
+  clearScreen: false,
   server: {
     port: 3000,
+    strictPort: true,
+    host: host || false,
+    hmr: host
+      ? { protocol: 'ws', host, port: 1421 }
+      : undefined,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
@@ -51,7 +66,12 @@ export default defineConfig({
       }
     }
   },
+  envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: {
+    target:
+      process.env.TAURI_ENV_PLATFORM === 'windows'
+        ? 'chrome105'
+        : 'safari13',
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild'

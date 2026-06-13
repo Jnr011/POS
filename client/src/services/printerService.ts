@@ -1,4 +1,6 @@
 import { Sale } from '../types';
+import { isTauri } from '../lib/tauri';
+import { tauriPrinterService, type ReceiptStoreInfo } from './tauriPrinter';
 
 type PrinterListener = (status: PrinterStatus) => void;
 
@@ -7,21 +9,32 @@ export interface PrinterStatus {
   deviceName: string | null;
   status: 'ready' | 'printing' | 'error' | 'no_paper' | 'disconnected';
   error: string | null;
+  mode: 'tauri' | 'webusb';
 }
 
 class PrinterService {
   private device: USBDevice | null = null;
   private listeners: Set<PrinterListener> = new Set();
 
+  get isTauriMode(): boolean {
+    return isTauri();
+  }
+
   getStatus(): PrinterStatus {
+    if (isTauri()) {
+      const status = tauriPrinterService.getStatus();
+      return { ...status, mode: 'tauri' };
+    }
+
     if (!this.device) {
-      return { connected: false, deviceName: null, status: 'disconnected', error: null };
+      return { connected: false, deviceName: null, status: 'disconnected', error: null, mode: 'webusb' };
     }
     return {
       connected: true,
       deviceName: this.device.productName || 'Thermal Printer',
       status: 'ready',
       error: null,
+      mode: 'webusb',
     };
   }
 
@@ -39,6 +52,13 @@ class PrinterService {
   }
 
   async requestDevice(): Promise<USBDevice> {
+    // Tauri mode: use native printer selection
+    if (isTauri()) {
+      await tauriPrinterService.connect();
+      this.notify();
+      return null as unknown as USBDevice;
+    }
+
     if (!navigator.usb) {
       throw new Error('WebUSB is not supported in this browser. Use Chrome or Edge.');
     }
@@ -69,6 +89,12 @@ class PrinterService {
   }
 
   async disconnect(): Promise<void> {
+    if (isTauri()) {
+      await tauriPrinterService.disconnect();
+      this.notify();
+      return;
+    }
+
     if (this.device) {
       try {
         await this.device.close();
@@ -80,14 +106,28 @@ class PrinterService {
     }
   }
 
-  async printReceipt(sale: Sale, storeName?: string): Promise<void> {
+  async printReceipt(sale: Sale, storeInfo?: string | ReceiptStoreInfo): Promise<void> {
+    if (isTauri()) {
+      const info: ReceiptStoreInfo = typeof storeInfo === 'string'
+        ? { storeName: storeInfo }
+        : storeInfo || {};
+      await tauriPrinterService.printReceipt(sale, info);
+      return;
+    }
+
     if (!this.device) throw new Error('No printer connected');
 
-    const data = this.buildEscPosReceipt(sale, storeName || 'Pharmacy POS');
+    const storeName = typeof storeInfo === 'string' ? storeInfo : storeInfo?.storeName || 'Pharmacy POS';
+    const data = this.buildEscPosReceipt(sale, storeName);
     await this.device.transferOut(1, data);
   }
 
   async printTestPage(): Promise<void> {
+    if (isTauri()) {
+      await tauriPrinterService.printTestPage();
+      return;
+    }
+
     if (!this.device) throw new Error('No printer connected');
 
     const ESC = 0x1B;
@@ -127,11 +167,14 @@ class PrinterService {
     const LF = 0x0A;
     const ESC = 0x1B;
     const GS = 0x1D;
+    const W = 48; // KW-Q921 80mm paper = 48 chars per line
 
     const lines: Uint8Array[] = [];
 
+    // Initialize printer
     lines.push(new Uint8Array([ESC, 0x40]));
 
+    // Store name - centered, double height
     lines.push(new Uint8Array([ESC, 0x61, 0x01]));
     lines.push(new Uint8Array([ESC, 0x21, 0x10]));
     lines.push(this.encode(storeName));
@@ -139,42 +182,64 @@ class PrinterService {
     lines.push(this.encode(''));
     lines.push(new Uint8Array([ESC, 0x61, 0x00]));
 
+    // Receipt info
     lines.push(this.encode(`Receipt #${sale.id}`));
     lines.push(this.encode(`Date: ${new Date(sale.date).toLocaleString()}`));
     lines.push(this.encode(`Cashier ID: ${sale.user_id}`));
     lines.push(this.encode(''));
 
-    lines.push(this.encode('─'.repeat(32)));
+    lines.push(this.encode('═'.repeat(W)));
 
-    const header = 'Item'.padEnd(18) + 'Qty'.padStart(4) + 'Total'.padStart(10);
+    // Items header
+    const header = 'Item'.padEnd(24) + 'Qty'.padStart(6) + 'Total'.padStart(16);
     lines.push(this.encode(header));
-    lines.push(this.encode('─'.repeat(32)));
+    lines.push(this.encode('─'.repeat(W)));
 
     for (const item of sale.items || []) {
-      const name = item.name.substring(0, 18).padEnd(18);
-      const qty = String(item.quantity).padStart(4);
-      const total = (item.price * item.quantity).toFixed(2).padStart(10);
+      const name = item.name.substring(0, 24).padEnd(24);
+      const qty = String(item.quantity).padStart(6);
+      const total = `₵${(item.price * item.quantity).toFixed(2)}`.padStart(16);
       lines.push(this.encode(name + qty + total));
     }
 
-    lines.push(this.encode('─'.repeat(32)));
+    lines.push(this.encode('─'.repeat(W)));
 
-    lines.push(this.encode(`Subtotal:`.padEnd(22) + sale.total_price.toFixed(2).padStart(10)));
-    lines.push(this.encode(`Tax:`.padEnd(22) + sale.tax.toFixed(2).padStart(10)));
+    // Totals
+    const subStr = `₵${sale.total_price.toFixed(2)}`;
+    const taxStr = `₵${sale.tax.toFixed(2)}`;
+    const totalStr = `₵${sale.grand_total.toFixed(2)}`;
 
+    lines.push(this.encode(`Subtotal:`.padEnd(W - subStr.length) + subStr));
+    lines.push(this.encode(`Tax:`.padEnd(W - taxStr.length) + taxStr));
+
+    // Bold + double height for total
     lines.push(new Uint8Array([ESC, 0x45, 0x01]));
-    lines.push(this.encode(`TOTAL:`.padEnd(22) + sale.grand_total.toFixed(2).padStart(10)));
+    lines.push(new Uint8Array([ESC, 0x21, 0x10]));
+    lines.push(this.encode(`TOTAL:`.padEnd(W - totalStr.length) + totalStr));
+    lines.push(new Uint8Array([ESC, 0x21, 0x00]));
     lines.push(new Uint8Array([ESC, 0x45, 0x00]));
 
     lines.push(this.encode(''));
-    const method = sale.payment_method === 'cash' ? 'Cash' : sale.payment_method === 'card' ? 'Card' : 'Mobile Money';
-    lines.push(this.encode(`Paid (${method}):`.padEnd(22) + sale.amount_tendered.toFixed(2).padStart(10)));
-    lines.push(this.encode(`Change:`.padEnd(22) + sale.change_due.toFixed(2).padStart(10)));
 
-    lines.push(new Uint8Array([LF]));
+    // Payment info
+    const method = sale.payment_method === 'cash' ? 'Cash' : sale.payment_method === 'card' ? 'Card' : 'Mobile Money';
+    const tenderedStr = `₵${sale.amount_tendered.toFixed(2)}`;
+    const changeStr = `₵${sale.change_due.toFixed(2)}`;
+
+    lines.push(this.encode(`Payment: ${method}`));
+    lines.push(this.encode(`Tendered:`.padEnd(W - tenderedStr.length) + tenderedStr));
+    lines.push(this.encode(`Change:`.padEnd(W - changeStr.length) + changeStr));
+
+    lines.push(this.encode(''));
+
+    // Footer
+    lines.push(this.encode('═'.repeat(W)));
     lines.push(new Uint8Array([ESC, 0x61, 0x01]));
     lines.push(this.encode('Thank you for your purchase!'));
     lines.push(this.encode(''));
+
+    // Cut paper
+    lines.push(new Uint8Array([LF]));
     lines.push(new Uint8Array([GS, 0x56, 0x00]));
 
     const totalLen = lines.reduce((sum, arr) => sum + arr.length, 0);

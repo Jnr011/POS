@@ -105,3 +105,24 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
 }
+
+export interface ReturnItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  reason: string;
+}
+
+export interface ReturnRecord {
+  id?: number;
+  saleId: number;
+  userId: number;
+  items: ReturnItem[];
+  refundTotal: number;
+  date: string;
+  updatedAt: number;
+  syncedAt?: number;
+  syncStatus: 'synced' | 'pending' | 'conflict';
+  deviceId?: string;
+}

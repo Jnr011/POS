@@ -6,12 +6,25 @@ interface StockCellProps {
   product: Product;
   pendingQty?: number;
   onDelta: (delta: number) => void;
+  readOnly?: boolean;
 }
 
-function StockCell({ product, pendingQty, onDelta }: StockCellProps) {
+function StockCell({ product, pendingQty, onDelta, readOnly }: StockCellProps) {
   const display = pendingQty ?? product.stock_quantity;
   const isDirty = pendingQty !== undefined && pendingQty !== product.stock_quantity;
   const low = display <= (product.min_stock ?? 10);
+
+  if (readOnly) {
+    return (
+      <span className={[
+        'text-sm font-mono tabular-nums',
+        display === 0 && 'text-destructive font-bold',
+        low && 'text-destructive',
+      ].join(' ')}>
+        {display}
+      </span>
+    );
+  }
 
   return (
     <div className="flex items-center gap-1">

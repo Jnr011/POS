@@ -1,9 +1,12 @@
 import { format } from 'date-fns';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
-import { User, Banknote, CreditCard, Smartphone, Receipt } from 'lucide-react';
+import { User, Banknote, CreditCard, Smartphone, Receipt, RotateCcw } from 'lucide-react';
+import { ReturnDialog } from './ReturnDialog';
 import type { Sale, User as UserType, CartItem } from '../types';
 import { formatCurrency } from '../lib/currency';
 import { cn } from '../lib/utils';
@@ -45,12 +48,14 @@ interface SaleDetailDialogProps {
 }
 
 function SaleDetailDialog({ sale, users, open, onOpenChange }: SaleDetailDialogProps) {
+  const [showReturn, setShowReturn] = useState(false);
   if (!sale) return null;
 
   const seller = users.find(u => u.id === sale.user_id);
   const MethodIcon = METHOD_ICONS[sale.payment_method] || Banknote;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
@@ -128,18 +133,23 @@ function SaleDetailDialog({ sale, users, open, onOpenChange }: SaleDetailDialogP
           </div>
           <Separator className="my-1" />
           <div className="flex justify-between text-muted-foreground">
-            <span>Amount Tendered</span>
-            <span className="tabular-nums">{formatCurrency(sale.amount_tendered)}</span>
-          </div>
-          {sale.change_due > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Change Due</span>
-              <span className="tabular-nums">{formatCurrency(sale.change_due)}</span>
+              <span>Amount Tendered</span>
+              <span className="tabular-nums">{formatCurrency(sale.amount_tendered)}</span>
             </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+            {sale.change_due > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Change Due</span>
+                <span className="tabular-nums">{formatCurrency(sale.change_due)}</span>
+              </div>
+            )}
+          </div>
+          <Button variant="outline" className="w-full gap-2 mt-2" onClick={() => setShowReturn(true)}>
+            <RotateCcw className="size-4" /> Process Return
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <ReturnDialog sale={sale} open={showReturn} onOpenChange={setShowReturn} />
+    </>
   );
 }
 

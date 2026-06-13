@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Check, X, Tag } from 'lucide-react';
+import { Plus, Pencil, Check, X, Tag, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -10,13 +10,15 @@ import { CategoryRepository } from '../../db/repository';
 interface CategoryManagerProps {
   categories: string[];
   onCategoriesChange: (categories: string[]) => void;
+  readOnly?: boolean;
 }
 
-function CategoryManager({ categories, onCategoriesChange }: CategoryManagerProps) {
+function CategoryManager({ categories, onCategoriesChange, readOnly }: CategoryManagerProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [newName, setNewName] = useState('');
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleAdd = async () => {
     const name = newName.trim();
@@ -57,65 +59,78 @@ function CategoryManager({ categories, onCategoriesChange }: CategoryManagerProp
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-sm font-medium text-foreground">
-            <span className="flex items-center gap-2">
-              <Tag className="size-4 text-muted-foreground" /> Categories
-            </span>
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowDialog(true)}>
-              <Plus className="size-3" /> Add
-            </Button>
+            <button
+              className="flex items-center gap-2 hover:text-foreground/80 transition-colors"
+              onClick={() => setCollapsed(c => !c)}
+            >
+              {collapsed ? <ChevronRight className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+              <Tag className="size-4 text-muted-foreground" />
+              Categories
+            </button>
+            {!readOnly && (
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowDialog(true)}>
+                <Plus className="size-3" /> Add
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No categories yet. Add a product with a category name to create one automatically.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat, idx) => (
-                <div key={cat}
-                  className="group flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm">
-                  {editIdx === idx ? (
-                    <>
-                      <Input
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        className="h-6 w-28 text-xs"
-                        autoFocus
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleRename(cat);
-                          if (e.key === 'Escape') setEditIdx(null);
-                        }}
-                      />
-                      <button className="rounded p-0.5 hover:text-foreground text-muted-foreground transition-colors"
-                        onClick={() => handleRename(cat)}>
-                        <Check className="size-3" />
-                      </button>
-                      <button className="rounded p-0.5 hover:text-foreground text-muted-foreground transition-colors"
-                        onClick={() => setEditIdx(null)}>
-                        <X className="size-3" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-foreground">{cat}</span>
-                      <button
-                        className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
-                        onClick={() => { setEditIdx(idx); setEditName(cat); }}>
-                        <Pencil className="size-3" />
-                      </button>
-                      <button
-                        className="rounded p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-                        onClick={() => handleDelete(cat)}>
-                        <X className="size-3" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+        {!collapsed && (
+          <CardContent>
+            {categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No categories yet. Add a product with a category name to create one automatically.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat, idx) => (
+                  <div key={cat}
+                    className="group flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm">
+                    {editIdx === idx ? (
+                      <>
+                        <Input
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="h-6 w-28 text-xs"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRename(cat);
+                            if (e.key === 'Escape') setEditIdx(null);
+                          }}
+                        />
+                        <button className="rounded p-0.5 hover:text-foreground text-muted-foreground transition-colors"
+                          onClick={() => handleRename(cat)}>
+                          <Check className="size-3" />
+                        </button>
+                        <button className="rounded p-0.5 hover:text-foreground text-muted-foreground transition-colors"
+                          onClick={() => setEditIdx(null)}>
+                          <X className="size-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-foreground">{cat}</span>
+                        {!readOnly && (
+                          <>
+                            <button
+                              className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
+                              onClick={() => { setEditIdx(idx); setEditName(cat); }}>
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              className="rounded p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                              onClick={() => handleDelete(cat)}>
+                              <X className="size-3" />
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

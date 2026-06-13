@@ -20,6 +20,7 @@ import {
   Package, Clock, Banknote, CreditCard, Smartphone,
   CheckCircle2, Pause, Play, Printer, Usb,
   AlertCircle, ArrowLeft, CircleDollarSign,
+  LayoutGrid, List,
 } from 'lucide-react';
 
 // ─── Checkout Dialog (Multi-Step) ─────────────────────────────────────────────
@@ -334,6 +335,7 @@ function Sales() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
   // Payment
   const [showPayment, setShowPayment] = useState(false);
@@ -483,8 +485,8 @@ function Sales() {
         {/* ── Products panel ── */}
         <div className="flex-1 space-y-4">
 
-          {/* Search + filter */}
-          <div className="flex gap-3">
+          {/* Search + filter + view toggle */}
+          <div data-tour="pos-search" className="flex gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -494,6 +496,26 @@ function Sales() {
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
               />
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+              <button
+                onClick={() => setViewMode('card')}
+                className={`flex size-7 items-center justify-center rounded-md transition-colors ${
+                  viewMode === 'card' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Card view"
+              >
+                <LayoutGrid className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex size-7 items-center justify-center rounded-md transition-colors ${
+                  viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="List view"
+              >
+                <List className="size-3.5" />
+              </button>
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-44">
@@ -506,13 +528,68 @@ function Sales() {
             </Select>
           </div>
 
-          {/* Product grid */}
+          {/* Products — card grid / list toggle */}
+          <div data-tour="pos-products">
           {filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Package className="size-10 text-muted-foreground/30 mb-3" />
               <p className="text-sm text-muted-foreground">
                 {products.length === 0 ? 'No products available' : 'No products match your search'}
               </p>
+            </div>
+          ) : viewMode === 'list' ? (
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Product</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Price</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Stock</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map(product => {
+                    const inCart = cart.find(i => i.id === product.id);
+                    const oos = product.stock_quantity === 0;
+                    const low = product.stock_quantity <= (product.min_stock ?? 10);
+                    return (
+                      <tr key={product.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${inCart ? 'bg-primary/[0.03]' : ''}`}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-foreground">{product.name}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="secondary" className="text-[10px]">{product.category}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold">{formatCurrency(product.price)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`text-xs tabular-nums ${oos ? 'text-destructive font-medium' : low ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                            {oos ? 'Out of stock' : product.stock_quantity}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {inCart ? (
+                            <div className="inline-flex items-center gap-1">
+                              <Button variant="outline" size="icon-xs" onClick={() => decrementQuantity(product.id)} disabled={inCart.quantity <= 1}>
+                                <Minus className="size-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm font-semibold tabular-nums">{inCart.quantity}</span>
+                              <Button variant="outline" size="icon-xs" onClick={() => incrementQuantity(product.id)} disabled={inCart.quantity >= product.stock_quantity}>
+                                <Plus className="size-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button size="xs" onClick={() => addItem(product)} disabled={oos} className="gap-1">
+                              <Plus className="size-3" /> Add
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -589,9 +666,10 @@ function Sales() {
             </div>
           )}
         </div>
+        </div>
 
         {/* ── Cart panel (sticky) ── */}
-        <div className="w-80 shrink-0 sticky top-6 space-y-4">
+        <div data-tour="pos-cart" className="w-80 shrink-0 sticky top-6 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between text-sm font-medium">
@@ -691,7 +769,7 @@ function Sales() {
 
                   {/* Actions */}
                   <div className="border-t border-border px-4 py-3 space-y-2">
-                    <Button onClick={handleCheckout} className="w-full gap-2">
+                    <Button data-tour="pos-checkout" onClick={handleCheckout} className="w-full gap-2">
                       <Banknote className="size-4" /> Pay {formatCurrency(grandTotal)}
                     </Button>
                     <div className="flex gap-2">

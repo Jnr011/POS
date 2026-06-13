@@ -1,19 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { syncService } from '../services/syncService';
-import { toast } from 'sonner';
 
 export function useSync() {
-  useEffect(() => {
-    syncService.initialize();
+  const initialized = useRef(false);
 
-    const unsub = syncService.subscribe((status) => {
-      if (status.lastErrorMessage) {
-        toast.error(`Sync error: ${status.lastErrorMessage}`);
-      }
-    });
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const timer = setTimeout(() => {
+      syncService.initialize();
+    }, 2000);
 
     return () => {
-      unsub();
+      clearTimeout(timer);
       syncService.destroy();
     };
   }, []);

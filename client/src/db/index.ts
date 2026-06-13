@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import { Product, Sale, User, SyncQueueItem, StoreInfo, StockAdjustment } from '../types';
+import { Product, Sale, User, SyncQueueItem, StoreInfo, StockAdjustment, ReturnRecord } from '../types';
 import type { ActivityLogEntry } from '../types/reports';
 
 export interface SyncMeta {
@@ -28,6 +28,7 @@ class PharmacyDB extends Dexie {
   storeInfo!: Table<StoreInfo, string>;
   stockAdjustments!: Table<StockAdjustment, number>;
   activityLog!: Table<ActivityLogEntry, number>;
+  returns!: Table<ReturnRecord, number>;
 
   constructor() {
     super('PharmacyPOS');
@@ -53,6 +54,19 @@ class PharmacyDB extends Dexie {
       storeInfo: '&key',
       stockAdjustments: '++id, productId, timestamp',
       activityLog: '++id, userId, action, timestamp',
+    });
+
+    this.version(5).stores({
+      products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
+      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId',
+      users: '++id, email, role, syncStatus, deviceId, mustChangePin',
+      syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
+      syncMeta: 'tableName',
+      printJobs: '++id, status, createdAt',
+      storeInfo: '&key',
+      stockAdjustments: '++id, productId, timestamp',
+      activityLog: '++id, userId, action, timestamp',
+      returns: '++id, saleId, userId, date, syncStatus, deviceId',
     });
   }
 }

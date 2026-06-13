@@ -15,7 +15,6 @@ import { format } from 'date-fns';
 function useAutoSync() {
   const [enabled, setEnabled] = useState(false);
   const [interval, setInterval_] = useState(5);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     StoreRepository.get('autoSyncEnabled').then(v => setEnabled(v === 'true'));
@@ -27,32 +26,14 @@ function useAutoSync() {
 
   const toggle = async (next: boolean) => {
     setEnabled(next);
-    await StoreRepository.set('autoSyncEnabled', String(next));
-    if (next) startInterval(interval);
-    else stopInterval();
-  };
-
-  const startInterval = (mins: number) => {
-    stopInterval();
-    intervalRef.current = setInterval(() => {
-      if (navigator.onLine) syncService.forceSync();
-    }, mins * 60_000);
-  };
-
-  const stopInterval = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    syncService.configure({ autoSyncEnabled: next, interval });
   };
 
   const changeInterval = async (mins: number) => {
     setInterval_(mins);
     await StoreRepository.set('autoSyncInterval', String(mins));
-    if (enabled) startInterval(mins);
+    if (enabled) syncService.configure({ autoSyncEnabled: true, interval: mins });
   };
-
-  useEffect(() => {
-    if (enabled) startInterval(interval);
-    return stopInterval;
-  }, []);
 
   return { enabled, interval, toggle, changeInterval };
 }

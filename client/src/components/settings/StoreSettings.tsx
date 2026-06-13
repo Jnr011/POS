@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { StoreRepository } from '../../db/repository';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { Save, Store, MapPin, Phone, Mail } from 'lucide-react';
+import { Save, Store, MapPin, Phone, Mail, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const FIELDS = [
@@ -31,8 +31,9 @@ export function StoreSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const keysToSave = [...FIELDS.map(f => f.key), 'allowReturns'];
       await Promise.all(
-        FIELDS.map(f => StoreRepository.set(f.key, values[f.key] || ''))
+        keysToSave.map(k => StoreRepository.set(k, values[k] || ''))
       );
       toast.success('Store settings saved');
     } catch {
@@ -92,6 +93,35 @@ export function StoreSettings() {
             </div>
           );
         })}
+      </div>
+
+      {/* Return Policy */}
+      <div className="px-6 py-4 border-t border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-warning/10">
+              <RotateCcw className="size-[18px] text-warning" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-foreground">Return Policy</h3>
+              <p className="text-xs text-muted-foreground">Allow customers to return products</p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={values.allowReturns !== 'false'}
+              onChange={e => setValues(prev => ({ ...prev, allowReturns: e.target.checked ? 'true' : 'false' }))}
+            />
+            <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-ring after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-background after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+          </label>
+        </div>
+        {values.allowReturns === 'false' && (
+          <p className="text-xs text-destructive/70 mt-2">
+            When disabled, all return buttons show a notice that returns are not available.
+          </p>
+        )}
       </div>
 
       {/* Footer */}

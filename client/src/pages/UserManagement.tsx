@@ -120,17 +120,19 @@ function UserManagement() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        icon={<Users className="size-4 text-primary" />}
-        title="User Management"
-        description={`${users.filter(u => u.isActive).length} active user${users.filter(u => u.isActive).length !== 1 ? 's' : ''}`}
-        actions={
-          <Button size="sm" onClick={openAddDialog} className="gap-1.5">
-            <UserPlus className="size-3.5" />
-            Add Sales Rep
-          </Button>
-        }
-      />
+      <div data-tour="users-header">
+        <PageHeader
+          icon={<Users className="size-4 text-primary" />}
+          title="User Management"
+          description={`${users.filter(u => u.isActive).length} active user${users.filter(u => u.isActive).length !== 1 ? 's' : ''}`}
+          actions={
+            <Button data-tour="users-add" size="sm" onClick={openAddDialog} className="gap-1.5">
+              <UserPlus className="size-3.5" />
+              Add Sales Rep
+            </Button>
+          }
+        />
+      </div>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -157,7 +159,7 @@ function UserManagement() {
           }
         />
       ) : (
-        <div className="space-y-6">
+        <div data-tour="users-list" className="space-y-6">
           {admins.length > 0 && (
             <UserSection title="Administrators" icon={<Crown className="size-3.5 text-warning" />}>
               {admins.map(user => (
