@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import {
   User, Shield, LogOut, DollarSign, ShoppingCart,
-  Smartphone, Eye, EyeOff, KeyRound, Store, PlayCircle,
+  Smartphone, Eye, EyeOff, KeyRound, Store,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -13,13 +13,11 @@ import { PinInput } from '../components/PinInput';
 import { UserRepository } from '../db/repository';
 import { hashPin } from '../hooks/useAuth';
 import { toast } from 'sonner';
-import { useOnboardingStore } from '../store/onboardingStore';
 
 function Profile() {
   const user = useAuthStore(s => s.user);
   const logout = useAuthStore(s => s.logout);
   const navigate = useNavigate();
-  const { startTour, isCompleted, reset } = useOnboardingStore();
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -182,32 +180,6 @@ function Profile() {
               <p className="text-sm truncate" title={navigator.userAgent}>{navigator.userAgent}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Replay Tour ── */}
-      <Card className="border-primary/20 bg-primary/[0.03]">
-        <CardContent className="p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <PlayCircle className="size-5 text-primary shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Interactive Tour</p>
-              <p className="text-xs text-muted-foreground">Replay the onboarding tour to see the app's key features.</p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-2 shrink-0"
-            onClick={() => {
-              if (user) {
-                reset(user.id);
-                startTour();
-              }
-            }}
-          >
-            <PlayCircle className="size-3.5" /> Replay Tour
-          </Button>
         </CardContent>
       </Card>
 

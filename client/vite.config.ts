@@ -49,7 +49,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'axios', 'react-joyride']
+    include: ['react', 'react-dom', 'react-router-dom', 'axios']
   },
   clearScreen: false,
   server: {

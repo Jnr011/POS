@@ -11,8 +11,6 @@ import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
 import Forbidden from './pages/Forbidden';
 import NotFound from './pages/NotFound';
-import { OnboardingProvider } from './components/onboarding/OnboardingProvider';
-
 const Login = React.lazy(() => import('./pages/Login'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const SalesRepDashboard = React.lazy(() => import('./pages/SalesRepDashboard'));
@@ -40,11 +38,7 @@ function AppContent() {
 
   const ProtectedLayout = () => {
     if (!isAuthenticated) return <Navigate to="/login" />;
-    return (
-      <OnboardingProvider>
-        <AppLayout />
-      </OnboardingProvider>
-    );
+    return <AppLayout />;
   };
 
   return (
