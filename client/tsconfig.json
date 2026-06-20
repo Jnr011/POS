@@ -13,6 +13,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["w3c-web-usb"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "paths": {

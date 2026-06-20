@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StoreSettings, TaxSettings, ReceiptSettings, BackupSettings } from '../components/settings';
-import { Settings as SettingsIcon, Store, Percent, Receipt, HardDrive } from 'lucide-react';
+import { PrinterDiagnosticsPanel } from '../components/PrinterDiagnosticsPanel';
+import { Settings as SettingsIcon, Store, Percent, Receipt, HardDrive, Printer } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const TABS = [
@@ -9,6 +10,7 @@ const TABS = [
   { id: 'tax', label: 'Tax', description: 'Rate and enablement', icon: Percent },
   { id: 'receipt', label: 'Receipt', description: 'Header and footer text', icon: Receipt },
   { id: 'backup', label: 'Backup & Sync', description: 'Data management', icon: HardDrive },
+  { id: 'printer', label: 'Printer', description: 'Diagnostics and setup', icon: Printer },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -22,6 +24,7 @@ function Settings() {
       case 'tax': return <TaxSettings />;
       case 'receipt': return <ReceiptSettings />;
       case 'backup': return <BackupSettings />;
+      case 'printer': return <PrinterDiagnosticsPanel />;
     }
   };
 
@@ -47,7 +50,7 @@ function Settings() {
                 className={cn(
                   'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150',
                   active
-                    ? 'bg-primary/[0.06] text-foreground'
+                    ? 'bg-primary/6 text-foreground'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                 )}
               >

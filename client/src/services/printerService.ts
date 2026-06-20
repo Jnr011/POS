@@ -1,6 +1,7 @@
 import { Sale } from '../types';
 import { isTauri } from '../lib/tauri';
-import { tauriPrinterService, type ReceiptStoreInfo } from './tauriPrinter';
+import { tauriPrinterService, type ReceiptStoreInfo, type PrinterDiagnostics } from './tauriPrinter';
+export type { PrinterDiagnostics };
 
 type PrinterListener = (status: PrinterStatus) => void;
 
@@ -260,6 +261,31 @@ class PrinterService {
     withNewline.set(encoded);
     withNewline[encoded.length] = 0x0A;
     return withNewline;
+  }
+
+  async getDiagnostics(): Promise<PrinterDiagnostics> {
+  if (isTauri()) {
+    return tauriPrinterService.getDiagnostics();
+  }
+
+  const checkedAt = Date.now();
+  if (!navigator.usb) {
+    return { isTauriRuntime: false, pluginLoaded: false, printers: [], error: 'WebUSB not supported in this browser', checkedAt };
+  }
+
+  const devices = await navigator.usb.getDevices();
+  return {
+    isTauriRuntime: false,
+    pluginLoaded: true,
+    printers: devices.map(d => ({
+      name: d.productName || 'Unknown USB device',
+      interface_type: 'USB',
+      identifier: `${d.vendorId.toString(16)}:${d.productId.toString(16)}`,
+      status: d.opened ? 'open' : 'closed',
+    })),
+    error: null,
+    checkedAt,
+  };
   }
 }
 

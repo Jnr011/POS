@@ -1,6 +1,6 @@
 {
   "name": "pos-client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Point of Sale System Frontend",
   "private": true,
   "type": "module",
@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev"
   },
   "dependencies": {
     "@esbuild/win32-x64": "^0.28.0",
@@ -46,6 +47,7 @@
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/w3c-web-usb": "^1.0.14",
     "@vitejs/plugin-react": "^4.2.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",

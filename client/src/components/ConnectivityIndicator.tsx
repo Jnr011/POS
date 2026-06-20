@@ -1,13 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
-import { WifiOff, RefreshCw, CloudOff, Wifi } from 'lucide-react';
+import { WifiOff, RefreshCw, CloudOff, Wifi, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type BannerState = 'hidden' | 'offline' | 'syncing' | 'pending' | 'backup_offline';
 
+const OFFLINE_DISMISS_MS = 10_000;
+
 export function ConnectivityIndicator() {
   const [online, setOnline] = useState(navigator.onLine);
+  const [dismissedOffline, setDismissedOffline] = useState(false);
   const { pendingPushes, isSyncing, forceSync } = useSyncStatus();
+
+  useEffect(() => {
+    if (!online) {
+      const timer = setTimeout(() => setDismissedOffline(true), OFFLINE_DISMISS_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [online]);
+
+  useEffect(() => {
+    if (online) {
+      setDismissedOffline(false);
+    }
+  }, [online]);
 
   useEffect(() => {
     const goOnline = () => setOnline(true);
@@ -21,7 +37,7 @@ export function ConnectivityIndicator() {
   }, []);
 
   const bannerState: BannerState =
-    !online ? 'offline' :
+    !online && !dismissedOffline ? 'offline' :
     isSyncing ? 'syncing' :
     pendingPushes > 0 ? 'pending' :
     'hidden';
@@ -45,6 +61,13 @@ export function ConnectivityIndicator() {
               <span className="truncate">
                 You're offline — data saved locally. Connect to the internet to sync and backup.
               </span>
+              <button
+                onClick={() => setDismissedOffline(true)}
+                className="ml-auto shrink-0 p-0.5 rounded hover:bg-destructive/20 transition-colors"
+                aria-label="Dismiss offline banner"
+              >
+                <X className="size-3.5" />
+              </button>
             </>
           )}
 

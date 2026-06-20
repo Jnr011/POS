@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { printerService, type PrinterStatus } from '../services/printerService';
+import { printerService, type PrinterStatus, type PrinterDiagnostics } from '../services/printerService';
 import { toast } from 'sonner';
 
 export function usePrinter() {
   const [status, setStatus] = useState<PrinterStatus>(printerService.getStatus());
+  const [diagnostics, setDiagnostics] = useState<PrinterDiagnostics | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
 
   useEffect(() => {
     return printerService.subscribe(setStatus);
@@ -43,11 +45,25 @@ export function usePrinter() {
     }
   }, []);
 
+  const refreshDiagnostics = useCallback(async () => {
+    setDiagnosticsLoading(true);
+    try {
+      const result = await printerService.getDiagnostics();
+      setDiagnostics(result);
+      return result;
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }, []);
+
   return {
     status,
     connect,
     disconnect,
     printReceipt,
     printTestPage,
+    diagnostics,
+    diagnosticsLoading,
+    refreshDiagnostics,
   };
 }
