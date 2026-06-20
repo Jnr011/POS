@@ -1,3 +1,5 @@
+import { isTauri as isTauriRuntime } from '@tauri-apps/api/core';
+
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return isTauriRuntime();
 }
