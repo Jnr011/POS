@@ -183,8 +183,8 @@ function SalesRepDashboard() {
                       <TableCell>{sale.items?.length ?? 0}</TableCell>
                       <TableCell className="tabular-nums font-medium">{formatCurrency(sale.grand_total)}</TableCell>
                       <TableCell>
-                        <Badge variant={sale.syncStatus === 'synced' ? 'secondary' : 'outline'}>
-                          {sale.syncStatus === 'synced' ? 'Synced' : 'Pending'}
+                        <Badge variant="outline" className={sale.status === 'completed' ? 'bg-accent/10 text-accent border-0' : 'bg-warning/10 text-warning border-0'}>
+                          {sale.status === 'completed' ? 'Completed' : 'Pending'}
                         </Badge>
                       </TableCell>
                     </TableRow>

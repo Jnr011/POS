@@ -46,12 +46,6 @@ const METHOD_LABELS: Record<string, string> = {
   mobile_money: 'Mobile Money',
 };
 
-const SYNC_STYLES: Record<string, string> = {
-  synced: 'bg-accent/10 text-accent',
-  pending: 'bg-warning/10 text-warning',
-  conflict: 'bg-destructive/10 text-destructive',
-};
-
 function SalesHistory() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
@@ -232,9 +226,12 @@ function SalesHistory() {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={cn('text-[10px] font-medium border-0 px-1.5 py-0', SYNC_STYLES[sale.syncStatus])}
+                            className={cn(
+                              'text-[10px] font-medium border-0 px-1.5 py-0',
+                              sale.status === 'completed' ? 'bg-accent/10 text-accent' : 'bg-warning/10 text-warning'
+                            )}
                           >
-                            {sale.syncStatus}
+                            {sale.status === 'completed' ? 'Completed' : 'Pending'}
                           </Badge>
                         </TableCell>
                       </TableRow>

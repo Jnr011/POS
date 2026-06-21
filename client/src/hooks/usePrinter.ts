@@ -21,6 +21,7 @@ export function usePrinter() {
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [selectionCandidates, setSelectionCandidates] = useState<PrinterInfo[] | null>(null);
   const pendingPrintRef = useRef<Sale | null>(null);
+  const pendingStoreInfoRef = useRef<ReceiptStoreInfo | undefined>(undefined);
 
   useEffect(() => {
     return printerService.subscribe(setStatus);
@@ -38,8 +39,19 @@ export function usePrinter() {
   useEffect(() => {
     if (status.connected && pendingPrintRef.current) {
       const sale = pendingPrintRef.current;
+      const storeInfo = pendingStoreInfoRef.current;
       pendingPrintRef.current = null;
-      printReceipt(sale);
+      pendingStoreInfoRef.current = undefined;
+      const tid = toast.loading('Printing receipt...');
+      (async () => {
+        try {
+          await printerService.printReceipt(sale, storeInfo);
+          toast.success('Receipt printed', { id: tid });
+        } catch (err: any) {
+          console.error('[PendingPrint]', err);
+          toast.error(err?.message || 'Failed to print receipt', { id: tid });
+        }
+      })();
     }
   }, [status.connected]);
 
@@ -67,12 +79,13 @@ export function usePrinter() {
   }, []);
 
   const printReceipt = useCallback(async (sale: Sale, storeInfo?: ReceiptStoreInfo) => {
+    const tid = toast.loading('Printing receipt...');
     try {
       await printerService.printReceipt(sale, storeInfo);
-      toast.success('Receipt printed');
+      toast.success('Receipt printed', { id: tid });
     } catch (err: any) {
       console.error('[PrintReceipt]', err);
-      toast.error(err?.message || 'Failed to print receipt');
+      toast.error(err?.message || 'Failed to print receipt', { id: tid });
     }
   }, []);
 
@@ -80,19 +93,25 @@ export function usePrinter() {
     if (status.connected) {
       return printReceipt(sale, storeInfo);
     }
+    const tid = toast.loading('Connecting to printer...');
     try {
       await printerService.requestDevice();
+      toast.loading('Printing receipt...', { id: tid });
       await printerService.printReceipt(sale, storeInfo);
       setSelectionCandidates(null);
-      toast.success('Receipt printed');
+      toast.success('Receipt printed', { id: tid });
     } catch (err: any) {
       if (err instanceof PrinterSelectionRequiredError) {
+        toast.dismiss(tid);
         pendingPrintRef.current = sale;
+        pendingStoreInfoRef.current = storeInfo;
         setSelectionCandidates(err.candidates);
         return;
       }
       if (err.name !== 'NotFoundError') {
-        toast.error(err.message || 'Failed to print receipt');
+        toast.error(err.message || 'Failed to print receipt', { id: tid });
+      } else {
+        toast.dismiss(tid);
       }
     }
   }, [status.connected, printReceipt]);

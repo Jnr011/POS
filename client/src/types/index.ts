@@ -37,6 +37,7 @@ export interface Sale {
   updatedAt: number;
   syncedAt?: number;
   syncStatus: 'synced' | 'pending' | 'conflict';
+  status: 'completed' | 'pending';
   deviceId?: string;
 }
 

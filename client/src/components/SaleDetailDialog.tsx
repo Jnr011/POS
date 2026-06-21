@@ -9,8 +9,6 @@ import { User, Banknote, CreditCard, Smartphone, Receipt, RotateCcw } from 'luci
 import { ReturnDialog } from './ReturnDialog';
 import type { Sale, User as UserType, CartItem } from '../types';
 import { formatCurrency } from '../lib/currency';
-import { cn } from '../lib/utils';
-
 function parseItems(items: Sale['items']): CartItem[] {
   if (!items) return [];
   if (Array.isArray(items)) return items;
@@ -32,12 +30,6 @@ const METHOD_LABELS: Record<string, string> = {
   cash: 'Cash',
   card: 'Card',
   mobile_money: 'Mobile Money',
-};
-
-const SYNC_STYLES: Record<string, string> = {
-  synced: 'bg-accent/10 text-accent',
-  pending: 'bg-warning/10 text-warning',
-  conflict: 'bg-destructive/10 text-destructive',
 };
 
 interface SaleDetailDialogProps {
@@ -66,9 +58,9 @@ function SaleDetailDialog({ sale, users, open, onOpenChange }: SaleDetailDialogP
             </DialogTitle>
             <Badge
               variant="outline"
-              className={cn('text-[10px] font-medium border-0 px-1.5 py-0', SYNC_STYLES[sale.syncStatus])}
+              className={sale.status === 'completed' ? 'text-[10px] font-medium border-0 px-1.5 py-0 bg-accent/10 text-accent' : 'text-[10px] font-medium border-0 px-1.5 py-0 bg-warning/10 text-warning'}
             >
-              {sale.syncStatus}
+              {sale.status === 'completed' ? 'Completed' : 'Pending'}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">

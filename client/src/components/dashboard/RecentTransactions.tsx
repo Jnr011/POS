@@ -5,13 +5,7 @@ import { Badge } from '../ui/badge';
 import { Receipt } from 'lucide-react';
 import type { Sale } from '../../types';
 import { formatCurrency } from '../../lib/currency';
-import { cn } from '../../lib/utils';
-
-const SYNC_STYLES: Record<string, string> = {
-  synced: 'bg-accent/10 text-accent',
-  pending: 'bg-warning/10 text-warning',
-  conflict: 'bg-destructive/10 text-destructive',
-};
+import { cn } from '@/lib/utils';
 
 interface RecentTransactionsProps {
   data: Sale[];
@@ -46,9 +40,9 @@ function RecentTransactions({ data, className }: RecentTransactionsProps) {
                     <p className="text-sm font-medium tabular-nums">#{String(sale.id).padStart(4, '0')}</p>
                     <Badge
                       variant="outline"
-                      className={cn('text-[10px] font-medium border-0 px-1.5 py-0', SYNC_STYLES[sale.syncStatus])}
+                      className={sale.status === 'completed' ? 'text-[10px] font-medium border-0 px-1.5 py-0 bg-accent/10 text-accent' : 'text-[10px] font-medium border-0 px-1.5 py-0 bg-warning/10 text-warning'}
                     >
-                      {sale.syncStatus}
+                      {sale.status === 'completed' ? 'Completed' : 'Pending'}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">

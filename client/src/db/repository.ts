@@ -238,6 +238,7 @@ export const SaleRepository = {
         date: new Date().toISOString(),
         updatedAt: now(),
         syncStatus: 'pending',
+        status: 'pending',
         deviceId: getDeviceId(),
       };
 

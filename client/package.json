@@ -1,6 +1,6 @@
 {
   "name": "pos-client",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Point of Sale System Frontend",
   "private": true,
   "type": "module",

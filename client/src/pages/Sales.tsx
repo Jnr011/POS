@@ -1,5 +1,6 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { db } from '../db';
 import { useProducts } from '../hooks/useProducts';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
@@ -397,6 +398,14 @@ function Sales() {
 
   const heldSales = useMemo(() => getHeldSales(), [showHeld]);
   const heldCount = Object.keys(heldSales).length;
+
+  const handleCompleteSale = useCallback(async (sale: Sale) => {
+    if (sale.status === 'completed') return;
+    try {
+      await db.sales.update(sale.id, { status: 'completed', updatedAt: Date.now() });
+      setLastSale(prev => prev?.id === sale.id ? { ...prev, status: 'completed' } : prev);
+    } catch {}
+  }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -837,9 +846,15 @@ function Sales() {
       {/* Receipt dialog */}
       <ReceiptDialog
         open={showReceipt}
-        onOpenChange={setShowReceipt}
+        onOpenChange={(v) => {
+          if (!v && lastSale) handleCompleteSale(lastSale);
+          setShowReceipt(v);
+        }}
         sale={lastSale}
-        onPrint={s => printer.connectAndPrint(s, storeInfo)}
+        onPrint={s => {
+          handleCompleteSale(s);
+          printer.connectAndPrint(s, storeInfo);
+        }}
         onPreview={s => setPreviewElements(buildReceiptElements(s, storeInfo))}
       />
 

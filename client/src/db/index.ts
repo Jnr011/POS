@@ -35,7 +35,7 @@ class PharmacyDB extends Dexie {
 
     this.version(2).stores({
       products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
-      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId',
+      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
       users: '++id, email, role, syncStatus, deviceId',
       syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
       syncMeta: 'tableName',
@@ -46,7 +46,7 @@ class PharmacyDB extends Dexie {
 
     this.version(4).stores({
       products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
-      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId',
+      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
       users: '++id, email, role, syncStatus, deviceId, mustChangePin',
       syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
       syncMeta: 'tableName',
@@ -58,7 +58,7 @@ class PharmacyDB extends Dexie {
 
     this.version(5).stores({
       products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
-      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId',
+      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
       users: '++id, email, role, syncStatus, deviceId, mustChangePin',
       syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
       syncMeta: 'tableName',
