@@ -1,17 +1,4 @@
 #!/usr/bin/env pwsh
-<#
-.SYNOPSIS
-  Bumps version, commits, tags, and pushes a release.
-.DESCRIPTION
-  Updates version in all 5 required files (package.json, Cargo.toml,
-  Cargo.lock, tauri.conf.json, tauri.ts), commits, tags, and pushes.
-  Guardrails prevent partial bumps.
-.PARAMETER Version
-  The new semver version (e.g. "1.2.0").
-.PARAMETER DryRun
-  Show what would be done without making changes.
-#>
-
 param(
   [Parameter(Mandatory=$true)]
   [string]$Version,
@@ -20,18 +7,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Validate semver
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
   Write-Error "Version must be semver (e.g. 1.2.0), got: $Version"
   exit 1
 }
 
 $Root = Resolve-Path "$PSScriptRoot/.."
+
 $Files = @(
-  "$Root/client/package.json",
-  "$Root/client/src-tauri/Cargo.toml",
-  "$Root/client/src-tauri/Cargo.lock",
-  "$Root/client/src-tauri/tauri.conf.json"
+  "$Root\client\package.json",
+  "$Root\client\src-tauri\Cargo.toml",
+  "$Root\client\src-tauri\Cargo.lock",
+  "$Root\client\src-tauri\tauri.conf.json"
 )
 
 Write-Host "==> Bumping version to $Version" -ForegroundColor Cyan
@@ -40,16 +27,14 @@ $Updated = @()
 
 foreach ($File in $Files) {
   $Content = Get-Content $File -Raw
-
   $Original = $Content
-  $Content = $Content -replace '"version": "\d+\.\d+\.\d+"', '"version": "' + $Version + '"'
-
-  if ($File -like "*Cargo.toml") {
-    $Content = $Content -replace '^version = "\d+\.\d+\.\d+"', "version = `"$Version`""
-  }
 
   if ($File -like "*Cargo.lock") {
-    $Content = $Content -replace '^name = "pharmacy-pos"\nversion = "\d+\.\d+\.\d+"', "name = `"pharmacy-pos`"`nversion = `"$Version`""
+    $Content = $Content -replace '(?m)^name = "pharmacy-pos"\r?\nversion = "\d+\.\d+\.\d+"', "name = ""pharmacy-pos""`nversion = ""$Version"""
+  } elseif ($File -like "*Cargo.toml") {
+    $Content = $Content -replace '(?m)^version = "\d+\.\d+\.\d+"', "version = ""$Version"""
+  } else {
+    $Content = $Content -replace '"version": "\d+\.\d+\.\d+"', """version"": ""$Version"""
   }
 
   if ($Content -eq $Original) {
