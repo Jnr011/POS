@@ -12,7 +12,7 @@
   "plugins": {
     "updater": {
       "endpoints": ["https://github.com/Jnr011/POS/releases/latest/download/latest.json"],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBNkUzM0RFRjE3OTBBMjAKUldRZ0Nubngzak51eXUzcTg2d2pQTWlEcWoyT2JUKzNkUHpxQlMyR1NlclhnM0dlMmhrTzVqbDIK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCNzVGM0VBODExMEQ3ODgKUldTSTF4Q0I2dk4xKzVURHFqQ0NqK1RjeXVvLzd3Q2VJQk1ScTc2eWVTVVhMczhITHZJWTNDWHQK"
     }
   },
   "app": {
