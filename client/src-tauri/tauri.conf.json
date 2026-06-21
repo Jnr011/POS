@@ -9,6 +9,12 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/Jnr011/POS/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBNkUzM0RFRjE3OTBBMjAKUldRZ0Nubngzak51eXUzcTg2d2pQTWlEcWoyT2JUKzNkUHpxQlMyR1NlclhnM0dlMmhrTzVqbDIK"
+    }
+  },
   "app": {
     "windows": [
       {
@@ -30,7 +36,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -39,7 +45,12 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "embedBootstrapper" }
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "sideBySide": false
+      }
     },
     "linux": {}
   }

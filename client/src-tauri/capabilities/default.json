@@ -11,6 +11,9 @@
     "autostart:allow-is-enabled",
     "thermal-printer:allow-list-thermal-printers",
     "thermal-printer:allow-print-thermal-printer",
-    "thermal-printer:allow-test-thermal-printer"
+    "thermal-printer:allow-test-thermal-printer",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install"
   ]
 }

@@ -61,3 +61,5 @@ coverage/
 *.pfx
 *.jks
 *.cert
+**/.updater-key
+**/.updater-key.pub

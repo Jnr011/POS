@@ -22,6 +22,7 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useStoreInfo } from '../hooks/useStoreInfo';
+import { useUpdate } from '../hooks/useUpdate';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -218,6 +219,7 @@ function Sidebar({ onClose }: SidebarProps) {
   const { theme, toggle: toggleTheme }    = useThemeStore();
   const { relayConnected, pendingPushes } = useSyncStatus();
   const { storeName } = useStoreInfo();
+  const update = useUpdate();
 
   const isAdmin  = user?.role === 'admin';
   const userName = user?.name ?? 'User';
@@ -238,6 +240,16 @@ function Sidebar({ onClose }: SidebarProps) {
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold text-primary-foreground leading-tight truncate">{storeName}</p>
           <p className="text-[10px] text-primary-foreground/60 leading-tight tracking-wide">Point of Sale</p>
+          {update.available && (
+            <button
+              onClick={update.install}
+              disabled={update.installing}
+              title={update.version ? `Update v${update.version} available` : 'Update available'}
+              className="mt-1 flex items-center gap-1 rounded bg-primary-foreground/15 px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/25 disabled:opacity-50"
+            >
+              {update.installing ? 'Updating…' : `v${update.version} available`}
+            </button>
+          )}
         </div>
         {onClose && (
           <button
