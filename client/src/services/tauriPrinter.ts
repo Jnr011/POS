@@ -1,5 +1,6 @@
 import { isTauri } from "../lib/tauri";
 import { Sale } from "../types";
+import { buildReceiptElements, type ReceiptElement, type ReceiptStoreInfo } from "../lib/receiptBuilder";
 
 type PrinterListener = (status: TauriPrinterStatus) => void;
 
@@ -10,25 +11,45 @@ export interface TauriPrinterStatus {
   error: string | null;
 }
 
-export interface ReceiptStoreInfo {
-  storeName?: string;
-  storeAddress?: string;
-  storePhone?: string;
-  receiptHeader?: string;
-  receiptFooter?: string;
+export interface PrinterInfo {
+  name: string;
+  interface_type: string;
+  identifier: string;
+  status: string;
+  likelyVirtual: boolean;
 }
 
 export interface PrinterDiagnostics {
   isTauriRuntime: boolean;
   pluginLoaded: boolean;
-  printers: {
-    name: string;
-    interface_type: string;
-    identifier: string;
-    status: string;
-  }[];
+  printers: PrinterInfo[];
   error: string | null;
   checkedAt: number;
+}
+
+const SAVED_PRINTER_KEY = "pos:selectedPrinter";
+
+const VIRTUAL_NAME_PATTERNS = [
+  /print to pdf/i, /onenote/i, /evernote/i, /foxit/i,
+  /xps document writer/i, /fax/i, /send to/i,
+];
+
+const VIRTUAL_PORT_PATTERNS = [
+  /^file:/i, /^nul:/i, /^portprompt:/i, /pdf/i, /evernote/i,
+];
+
+function isLikelyVirtual(name: string, identifier: string): boolean {
+  return VIRTUAL_NAME_PATTERNS.some(r => r.test(name)) ||
+    VIRTUAL_PORT_PATTERNS.some(r => r.test(identifier));
+}
+
+export class PrinterSelectionRequiredError extends Error {
+  candidates: PrinterInfo[];
+  constructor(candidates: PrinterInfo[]) {
+    super("Multiple printers found — selection required");
+    this.candidates = candidates;
+    this.name = "PrinterSelectionRequiredError";
+  }
 }
 
 class TauriPrinterService {
@@ -37,6 +58,36 @@ class TauriPrinterService {
 
   // KW-Q921: 80mm paper = 48 chars per line
   private static readonly CHARS_PER_LINE = 48;
+
+  getSavedPrinterName(): string | null {
+    try {
+      return localStorage.getItem(SAVED_PRINTER_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  setSavedPrinterName(name: string) {
+    try {
+      localStorage.setItem(SAVED_PRINTER_KEY, name);
+    } catch {
+      // ignore
+    }
+  }
+
+  clearSavedPrinterName() {
+    try {
+      localStorage.removeItem(SAVED_PRINTER_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  private flagPrinters(printers: {
+    name: string; interface_type: string; identifier: string; status: string;
+  }[]): PrinterInfo[] {
+    return printers.map(p => ({ ...p, likelyVirtual: isLikelyVirtual(p.name, p.identifier) }));
+  }
 
   async isAvailable(): Promise<boolean> {
     if (!isTauri()) return false;
@@ -106,10 +157,26 @@ class TauriPrinterService {
     const printers = await list_thermal_printers();
     if (printers.length === 0) throw new Error("No printers found");
 
-    const name = printerName || printers[0].name;
-    this.connectedPrinter = name;
+    const withFlags = this.flagPrinters(printers);
+
+    const target = printerName || this.getSavedPrinterName();
+    let chosen = target ? withFlags.find(p => p.name === target) : undefined;
+
+    if (!chosen) {
+      const real = withFlags.filter(p => !p.likelyVirtual);
+      if (real.length === 1) {
+        chosen = real[0];
+      } else if (real.length === 0 && withFlags.length === 1) {
+        chosen = withFlags[0];
+      } else {
+        throw new PrinterSelectionRequiredError(withFlags);
+      }
+    }
+
+    this.connectedPrinter = chosen.name;
+    this.setSavedPrinterName(chosen.name);
     this.notify();
-    return name;
+    return chosen.name;
   }
 
   async disconnect(): Promise<void> {
@@ -117,105 +184,43 @@ class TauriPrinterService {
     this.notify();
   }
 
+  private toPrinterSections(elements: ReceiptElement[], tp: any): any[] {
+    return elements.map(el => {
+      switch (el.type) {
+        case 'title': return tp.title(el.text);
+        case 'subtitle': return tp.subtitle(el.text);
+        case 'line': return tp.line(el.char || '-');
+        case 'text': {
+          const opts: any = {};
+          if (el.align) opts.align = el.align;
+          if (el.bold) opts.bold = el.bold;
+          if (el.size) opts.size = el.size;
+          return tp.text(el.text || '', opts);
+        }
+        case 'table': {
+          const colCount = el.rows.length ? el.rows[0].length : 3;
+          return tp.table(colCount, el.rows, {
+            header: el.header,
+            column_widths: el.columnWidths,
+            truncate: true,
+          });
+        }
+        case 'feed': return tp.feed(el.lines);
+        case 'cut': return tp.cut();
+      }
+    });
+  }
+
   async printReceipt(sale: Sale, storeInfo?: ReceiptStoreInfo): Promise<void> {
     if (!this.connectedPrinter) throw new Error("No printer connected");
     if (!isTauri()) throw new Error("Not running in Tauri");
 
     const tp = await import("tauri-plugin-thermal-printer");
-    const printerName = this.connectedPrinter;
-    const W = TauriPrinterService.CHARS_PER_LINE;
-
-    const storeName = storeInfo?.storeName || "Pharmacy POS";
-    const storeAddress = storeInfo?.storeAddress || "";
-    const storePhone = storeInfo?.storePhone || "";
-    const receiptHeader = storeInfo?.receiptHeader || "";
-    const receiptFooter =
-      storeInfo?.receiptFooter || "Thank you for your purchase!";
-
-    const paymentMethod =
-      sale.payment_method === "cash"
-        ? "Cash"
-        : sale.payment_method === "card"
-          ? "Card"
-          : "Mobile Money";
-
-    // Column widths: Name(24) + Qty(6) + Total(16) = 46 + 2 gap = 48
-    const COL_NAME = 24;
-    const COL_QTY = 6;
-    const COL_TOTAL = 16;
-
-    const saleBody = (sale.items || []).map((item) => [
-      { text: item.name.substring(0, COL_NAME) },
-      { text: String(item.quantity).padStart(COL_QTY) },
-      {
-        text: `₵${(item.price * item.quantity).toFixed(2)}`.padStart(COL_TOTAL),
-      },
-    ]);
-
-    const sections = [
-      // ── Store Header ──
-      tp.title(storeName),
-      ...(storeAddress ? [tp.text(storeAddress, { align: "center" })] : []),
-      ...(storePhone ? [tp.text(storePhone, { align: "center" })] : []),
-      tp.text(""),
-      tp.line("="),
-
-      // ── Receipt Info ──
-      tp.text(`Receipt #: ${sale.id}`),
-      tp.text(`Date: ${new Date(sale.date).toLocaleString()}`),
-      tp.text(`Cashier ID: ${sale.user_id}`),
-      tp.text(""),
-      tp.line("-"),
-
-      // ── Custom header from store settings ──
-      ...(receiptHeader ? [tp.text(receiptHeader, { align: "center" })] : []),
-
-      // ── Items Table ──
-      tp.table(3, saleBody, {
-        column_widths: [COL_NAME, COL_QTY, COL_TOTAL],
-        header: [{ text: "Item" }, { text: "Qty" }, { text: "Total" }],
-        truncate: true,
-      }),
-      tp.line("-"),
-
-      // ── Totals ──
-      tp.text(
-        `Subtotal:${"".padStart(W - 9 - sale.total_price.toFixed(2).length)}₵${sale.total_price.toFixed(2)}`,
-        { align: "right" },
-      ),
-      tp.text(
-        `Tax:${"".padStart(W - 4 - sale.tax.toFixed(2).length)}₵${sale.tax.toFixed(2)}`,
-        { align: "right" },
-      ),
-      tp.text(""),
-      tp.text(`TOTAL:  ₵${sale.grand_total.toFixed(2)}`, {
-        bold: true,
-        size: "double",
-        align: "right",
-      }),
-      tp.text(""),
-
-      // ── Payment Info ──
-      tp.text(`Payment: ${paymentMethod}`, { bold: true }),
-      tp.text(`Tendered: ₵${sale.amount_tendered.toFixed(2)}`),
-      tp.text(`Change:   ₵${sale.change_due.toFixed(2)}`),
-      tp.text(""),
-
-      // ── Footer ──
-      tp.line("="),
-      tp.text(receiptFooter, { align: "center" }),
-      tp.text(""),
-    ];
-
-    // Add custom footer from store settings
-    if (receiptHeader && receiptFooter !== receiptHeader) {
-      sections.push(tp.text(receiptHeader, { align: "center" }));
-    }
-
-    sections.push(tp.feed(3), tp.cut());
+    const elements = buildReceiptElements(sale, storeInfo);
+    const sections = this.toPrinterSections(elements, tp);
 
     await tp.print_thermal_printer({
-      printer: printerName,
+      printer: this.connectedPrinter,
       paper_size: "Mm80",
       options: {
         code_page: 6,
@@ -247,7 +252,7 @@ class TauriPrinterService {
       return {
         isTauriRuntime: true,
         pluginLoaded: true,
-        printers,
+        printers: this.flagPrinters(printers),
         error: null,
         checkedAt,
       };

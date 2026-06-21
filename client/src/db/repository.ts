@@ -212,7 +212,7 @@ export const SaleRepository = {
     const grandTotal = totalPrice + tax;
     const changeDue = Math.max(0, amountTendered - grandTotal);
 
-    return db.transaction('rw', db.sales, db.products, db.syncQueue, async () => {
+    return db.transaction('rw', db.sales, db.products, db.syncQueue, db.activityLog, async () => {
       for (const item of cart) {
         const product = await db.products.get(item.id);
         if (!product) throw new Error(`Product "${item.name}" not found`);

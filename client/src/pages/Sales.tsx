@@ -4,6 +4,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { usePrinter } from '../hooks/usePrinter';
+import { useStoreInfo } from '../hooks/useStoreInfo';
 import { SaleRepository } from '../db/repository';
 import { formatCurrency } from '../lib/currency';
 import type { Product, CartItem, Sale } from '../types';
@@ -15,6 +16,9 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { PageHeader } from '../components/PageHeader';
+import { PrinterSelectDialog } from '../components/PrinterSelectDialog';
+import { ReceiptPreview } from '../components/ReceiptPreview';
+import { buildReceiptElements } from '../lib/receiptBuilder';
 import {
   ShoppingCart, Search, X, Plus, Minus, Trash2,
   Package, Clock, Banknote, CreditCard, Smartphone,
@@ -247,12 +251,13 @@ function CheckoutDialog({
 // ─── Receipt Dialog ───────────────────────────────────────────────────────────
 
 function ReceiptDialog({
-  open, onOpenChange, sale, onPrint,
+  open, onOpenChange, sale, onPrint, onPreview,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   sale: Sale | null;
   onPrint: (sale: Sale) => void;
+  onPreview: (sale: Sale) => void;
 }) {
   if (!sale) return null;
 
@@ -309,6 +314,10 @@ function ReceiptDialog({
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => onPreview(sale)} className="gap-2" size="sm">
+            <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview
+          </Button>
           <Button variant="outline" onClick={() => onPrint(sale)} className="flex-1 gap-2">
             <Printer className="size-4" /> Print Receipt
           </Button>
@@ -331,6 +340,7 @@ function Sales() {
   } = useCartStore();
   const user = useAuthStore(s => s.user);
   const printer = usePrinter();
+  const storeInfo = useStoreInfo();
 
   const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
@@ -348,6 +358,9 @@ function Sales() {
 
   // Held sales
   const [showHeld, setShowHeld] = useState(false);
+
+  // Receipt preview
+  const [previewElements, setPreviewElements] = useState<ReturnType<typeof buildReceiptElements> | null>(null);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -463,13 +476,13 @@ function Sales() {
           <Button
             variant={printer.status.connected ? 'default' : 'outline'}
             size="sm"
-            onClick={printer.status.connected ? printer.disconnect : printer.connect}
+            onClick={() => printer.status.connected ? printer.disconnect() : printer.connect()}
             className="gap-2"
           >
             {printer.status.connected ? (
               <>
                 <span className="size-2 rounded-full bg-accent animate-pulse" />
-                <Printer className="size-4" /> Connected
+                <Printer className="size-4" /> {printer.status.deviceName}
               </>
             ) : (
               <>
@@ -555,7 +568,7 @@ function Sales() {
                     const oos = product.stock_quantity === 0;
                     const low = product.stock_quantity <= (product.min_stock ?? 10);
                     return (
-                      <tr key={product.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${inCart ? 'bg-primary/[0.03]' : ''}`}>
+                      <tr key={product.id} className={`border-b border-border last:border-0 hover:bg-muted/30 transition-colors ${inCart ? 'bg-primary/3' : ''}`}>
                         <td className="px-4 py-3">
                           <p className="font-medium text-foreground">{product.name}</p>
                         </td>
@@ -826,7 +839,8 @@ function Sales() {
         open={showReceipt}
         onOpenChange={setShowReceipt}
         sale={lastSale}
-        onPrint={s => printer.printReceipt(s)}
+        onPrint={s => printer.connectAndPrint(s, storeInfo)}
+        onPreview={s => setPreviewElements(buildReceiptElements(s, storeInfo))}
       />
 
       {/* Held sales dialog */}
@@ -871,6 +885,25 @@ function Sales() {
             )}
         </DialogContent>
       </Dialog>
+
+      {/* Receipt preview dialog */}
+      <Dialog open={!!previewElements} onOpenChange={() => setPreviewElements(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Receipt Preview</DialogTitle>
+          </DialogHeader>
+          {previewElements && <ReceiptPreview elements={previewElements} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Printer selection dialog */}
+      {printer.selectionCandidates && (
+        <PrinterSelectDialog
+          candidates={printer.selectionCandidates}
+          onSelect={n => { printer.connect(n); }}
+          onClose={() => printer.setSelectionCandidates(null)}
+        />
+      )}
     </div>
   );
 }

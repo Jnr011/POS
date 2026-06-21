@@ -4,6 +4,7 @@ import { UserRepository } from '../db/repository';
 import { PageHeader } from '../components/PageHeader';
 import { SaleDetailDialog } from '../components/SaleDetailDialog';
 import { ReturnDialog } from '../components/ReturnDialog';
+import { PrinterSelectDialog } from '../components/PrinterSelectDialog';
 import { EmptyState } from '../components/ui/empty-state';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -11,11 +12,16 @@ import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User, RotateCcw } from 'lucide-react';
+import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User, RotateCcw, Printer, Eye } from 'lucide-react';
 import type { Sale, User as UserType, CartItem } from '../types';
 import { formatCurrency } from '../lib/currency';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import { usePrinter } from '../hooks/usePrinter';
+import { useStoreInfo } from '../hooks/useStoreInfo';
+import { ReceiptPreview } from '../components/ReceiptPreview';
+import { buildReceiptElements } from '../lib/receiptBuilder';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
 function parseItems(items: Sale['items']): CartItem[] {
   if (!items) return [];
@@ -55,6 +61,9 @@ function SalesHistory() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
+  const printer = usePrinter();
+  const storeInfo = useStoreInfo();
+  const [previewElements, setPreviewElements] = useState<ReturnType<typeof buildReceiptElements> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,6 +288,18 @@ function SalesHistory() {
                                   View full details →
                                 </button>
                                 <button
+                                  onClick={(e) => { e.stopPropagation(); setPreviewElements(buildReceiptElements(sale, storeInfo)); }}
+                                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 underline-offset-4 hover:underline"
+                                >
+                                  <Eye className="size-3" /> Preview
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); printer.connectAndPrint(sale, storeInfo); }}
+                                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 underline-offset-4 hover:underline"
+                                >
+                                  <Printer className="size-3" /> Print
+                                </button>
+                                <button
                                   onClick={(e) => { e.stopPropagation(); setReturnSale(sale); }}
                                   className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 underline-offset-4 hover:underline"
                                 >
@@ -309,6 +330,24 @@ function SalesHistory() {
         open={!!returnSale}
         onOpenChange={(open) => { if (!open) setReturnSale(null); }}
       />
+
+      {/* Receipt preview dialog */}
+      <Dialog open={!!previewElements} onOpenChange={() => setPreviewElements(null)}>
+        <DialogContent  className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Receipt Preview</DialogTitle>
+          </DialogHeader>
+          {previewElements && <ReceiptPreview elements={previewElements} />}
+        </DialogContent>
+      </Dialog>
+
+      {printer.selectionCandidates && (
+        <PrinterSelectDialog
+          candidates={printer.selectionCandidates}
+          onSelect={n => { printer.connect(n); }}
+          onClose={() => printer.setSelectionCandidates(null)}
+        />
+      )}
     </div>
   );
 }

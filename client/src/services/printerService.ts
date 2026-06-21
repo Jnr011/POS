@@ -1,7 +1,9 @@
 import { Sale } from '../types';
 import { isTauri } from '../lib/tauri';
-import { tauriPrinterService, type ReceiptStoreInfo, type PrinterDiagnostics } from './tauriPrinter';
+import { tauriPrinterService, PrinterSelectionRequiredError, type PrinterDiagnostics } from './tauriPrinter';
+import type { ReceiptStoreInfo } from '../lib/receiptBuilder';
 export type { PrinterDiagnostics };
+export { PrinterSelectionRequiredError };
 
 type PrinterListener = (status: PrinterStatus) => void;
 
@@ -52,10 +54,10 @@ class PrinterService {
     }
   }
 
-  async requestDevice(): Promise<USBDevice> {
+  async requestDevice(printerName?: string): Promise<USBDevice> {
     // Tauri mode: use native printer selection
     if (isTauri()) {
-      await tauriPrinterService.connect();
+      await tauriPrinterService.connect(printerName);
       this.notify();
       return null as unknown as USBDevice;
     }
@@ -191,13 +193,12 @@ class PrinterService {
 
     lines.push(this.encode('═'.repeat(W)));
 
-    // Items header
-    const header = 'Item'.padEnd(24) + 'Qty'.padStart(6) + 'Total'.padStart(16);
+    const header = 'Item'.padEnd(26) + 'Qty'.padStart(6) + 'Total'.padStart(16);
     lines.push(this.encode(header));
     lines.push(this.encode('─'.repeat(W)));
 
     for (const item of sale.items || []) {
-      const name = item.name.substring(0, 24).padEnd(24);
+      const name = item.name.substring(0, 26).padEnd(26);
       const qty = String(item.quantity).padStart(6);
       const total = `₵${(item.price * item.quantity).toFixed(2)}`.padStart(16);
       lines.push(this.encode(name + qty + total));
