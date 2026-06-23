@@ -482,23 +482,40 @@ function Sales() {
         title="Sales"
         description="Point of Sale Terminal"
         actions={
-          <Button
-            variant={printer.status.connected ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => printer.status.connected ? printer.disconnect() : printer.connect()}
-            className="gap-2"
-          >
-            {printer.status.connected ? (
-              <>
+          printer.status.connected ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 rounded-lg bg-primary/10 text-primary px-3 py-1.5 text-sm">
                 <span className="size-2 rounded-full bg-accent animate-pulse" />
-                <Printer className="size-4" /> {printer.status.deviceName}
-              </>
-            ) : (
-              <>
-                <Usb className="size-4" /> Connect Printer
-              </>
-            )}
-          </Button>
+                <Printer className="size-3.5" />
+                <span className="font-medium text-xs">{printer.status.deviceName}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={printer.switchPrinter}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                Switch
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => printer.disconnect()}
+                className="gap-1.5 text-muted-foreground hover:text-destructive"
+              >
+                Disconnect
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => printer.connect()}
+              className="gap-2"
+            >
+              <Usb className="size-4" /> Connect Printer
+            </Button>
+          )
         }
       />
 

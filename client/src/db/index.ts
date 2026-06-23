@@ -18,6 +18,14 @@ export interface PrintJob {
   retryCount: number;
 }
 
+export interface DbBackupRecord {
+  id?: number;
+  createdAt: number;
+  version: number;
+  label: string;
+  data: string;
+}
+
 class PharmacyDB extends Dexie {
   products!: Table<Product, number>;
   sales!: Table<Sale, number>;
@@ -29,34 +37,12 @@ class PharmacyDB extends Dexie {
   stockAdjustments!: Table<StockAdjustment, number>;
   activityLog!: Table<ActivityLogEntry, number>;
   returns!: Table<ReturnRecord, number>;
+  dbBackups!: Table<DbBackupRecord, number>;
 
   constructor() {
     super('PharmacyPOS');
 
-    this.version(2).stores({
-      products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
-      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
-      users: '++id, email, role, syncStatus, deviceId',
-      syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
-      syncMeta: 'tableName',
-      printJobs: '++id, status, createdAt',
-      storeInfo: '&key',
-      stockAdjustments: '++id, productId, timestamp',
-    });
-
-    this.version(4).stores({
-      products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
-      sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
-      users: '++id, email, role, syncStatus, deviceId, mustChangePin',
-      syncQueue: '++id, action, table, recordId, timestamp, retryCount, deviceId',
-      syncMeta: 'tableName',
-      printJobs: '++id, status, createdAt',
-      storeInfo: '&key',
-      stockAdjustments: '++id, productId, timestamp',
-      activityLog: '++id, userId, action, timestamp',
-    });
-
-    this.version(5).stores({
+    this.version(7).stores({
       products: '++id, name, category, stock_quantity, updatedAt, syncStatus, deviceId',
       sales: '++id, user_id, date, payment_method, updatedAt, syncStatus, deviceId, status',
       users: '++id, email, role, syncStatus, deviceId, mustChangePin',
@@ -67,6 +53,14 @@ class PharmacyDB extends Dexie {
       stockAdjustments: '++id, productId, timestamp',
       activityLog: '++id, userId, action, timestamp',
       returns: '++id, saleId, userId, date, syncStatus, deviceId',
+      dbBackups: '++id, createdAt',
+    }).upgrade(async (tx) => {
+      await tx.table('sales').toCollection().modify(s => {
+        if (s.status === undefined) s.status = 'completed';
+      });
+      await tx.table('products').toCollection().modify(p => {
+        if (p.syncStatus === undefined) p.syncStatus = 'pending';
+      });
     });
   }
 }

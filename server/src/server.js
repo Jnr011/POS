@@ -7,6 +7,9 @@ const User = require('./models/user');
 const Product = require('./models/product');
 const Sale = require('./models/sale');
 const Device = require('./models/device');
+const Return = require('./models/return');
+const { SyncPushLog, SyncPullLog, CloudSyncMeta } = require('./models/syncLog');
+const cloudSync = require('./services/cloudSync');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -25,11 +28,25 @@ sequelize.authenticate()
   .then(() => console.log('✅ Database connected'))
   .catch(err => console.log('❌ Database Error: ' + err));
 
-sequelize.sync({ alter: true })
-  .then(() => console.log('✅ Models synced'))
-  .catch(err => console.log('❌ Sync error: ' + err));
+// Disable FK enforcement during schema sync (SQLite limitation)
+sequelize.query('PRAGMA foreign_keys = OFF')
+  .then(() => sequelize.sync({ alter: true }))
+  .then(() => sequelize.query('PRAGMA foreign_keys = ON'))
+  .then(() => {
+    console.log('✅ Models synced');
+    cloudSync.start();
+  })
+  .catch(err => {
+    console.log('❌ Sync error: ' + err);
+    sequelize.query('PRAGMA foreign_keys = ON').catch(() => {});
+  });
 
+// Routes
 app.use('/api/sync', require('./routes/sync'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/sales', require('./routes/sales'));
+app.use('/api/users', require('./routes/users'));
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'Server is running' });

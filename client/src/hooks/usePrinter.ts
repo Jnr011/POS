@@ -78,6 +78,12 @@ export function usePrinter() {
     toast.info('Printer disconnected');
   }, []);
 
+  const switchPrinter = useCallback(async () => {
+    setSelectionCandidates(null);
+    await printerService.disconnect();
+    connect();
+  }, [connect]);
+
   const printReceipt = useCallback(async (sale: Sale, storeInfo?: ReceiptStoreInfo) => {
     const tid = toast.loading('Printing receipt...');
     try {
@@ -140,6 +146,7 @@ export function usePrinter() {
     status,
     connect,
     disconnect,
+    switchPrinter,
     printReceipt,
     connectAndPrint,
     printTestPage,

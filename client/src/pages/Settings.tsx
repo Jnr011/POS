@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StoreSettings, TaxSettings, ReceiptSettings, BackupSettings } from '../components/settings';
 import { PrinterDiagnosticsPanel } from '../components/PrinterDiagnosticsPanel';
-import { Settings as SettingsIcon, Store, Percent, Receipt, HardDrive, Printer } from 'lucide-react';
+import { useThemeStore } from '../store/themeStore';
+import {
+  Settings as SettingsIcon, Store, Percent, Receipt, HardDrive, Printer, Sun, Moon,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const TABS = [
@@ -17,6 +20,7 @@ type TabId = typeof TABS[number]['id'];
 
 function Settings() {
   const [activeTab, setActiveTab] = useState<TabId>('store');
+  const { theme, toggle: toggleTheme } = useThemeStore();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -30,11 +34,20 @@ function Settings() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        icon={<SettingsIcon className="size-4 text-primary" />}
-        title="Settings"
-        description="Configure your pharmacy's system settings."
-      />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          icon={<SettingsIcon className="size-4 text-primary" />}
+          title="Settings"
+          description="Configure your pharmacy's system settings."
+        />
+        <button
+          onClick={toggleTheme}
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {theme === 'dark' ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
+        </button>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
 

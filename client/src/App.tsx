@@ -4,9 +4,10 @@ import { Toaster } from './components/ui/sonner';
 import ErrorBoundary from './components/ErrorBoundary';
 import { SplashScreen } from './components/SplashScreen';
 import { PageLoading } from './components/PageLoading';
-import { ConnectivityIndicator } from './components/ConnectivityIndicator';
+import { CorruptionRecoveryDialog } from './components/CorruptionRecoveryDialog';
 import { useAuthStore } from './store/authStore';
 import { useSync } from './hooks/useSync';
+import { autoBackupService } from './services/autoBackupService';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
 import Forbidden from './pages/Forbidden';
@@ -59,7 +60,7 @@ function AppContent() {
           <Route path="/reports/inventory" element={user?.role === 'admin' ? <ReportsInventory /> : <Forbidden />} />
           <Route path="/reports/activity" element={user?.role === 'admin' ? <ReportsActivity /> : <Forbidden />} />
           <Route path="/admin/users" element={user?.role === 'admin' ? <UserManagement /> : <Forbidden />} />
-          <Route path="/admin/settings" element={user?.role === 'admin' ? <Settings /> : <Forbidden />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
 
@@ -72,11 +73,23 @@ function AppContent() {
 
 function App() {
   const [ready, setReady] = useState(false);
+  const [corrupt, setCorrupt] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 800);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(async () => {
+      const result = await autoBackupService.checkIntegrity();
+      if (!result.healthy) {
+        setCorrupt(true);
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [ready]);
 
   if (!ready) {
     return <SplashScreen minimumDuration={800} />;
@@ -84,8 +97,12 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ConnectivityIndicator />
       <AppContent />
+      <CorruptionRecoveryDialog
+        open={corrupt}
+        onClose={() => setCorrupt(false)}
+        onRecovered={() => setCorrupt(false)}
+      />
       <Toaster richColors position="top-right" />
     </ErrorBoundary>
   );

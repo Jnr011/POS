@@ -13,7 +13,7 @@ export function PrinterSelectDialog({ candidates, onSelect, onClose }: {
         <DialogHeader>
           <DialogTitle>Which printer is your receipt printer?</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
           {candidates.map(c => (
             <button
               key={c.name}

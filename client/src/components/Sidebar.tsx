@@ -11,18 +11,15 @@ import {
   Users,
   Store,
   LogOut,
-  Sun,
-  Moon,
   X,
   Settings,
   ChevronDown,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
-import { useThemeStore } from '../store/themeStore';
-import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useStoreInfo } from '../hooks/useStoreInfo';
 import { useUpdate } from '../hooks/useUpdate';
+import { SyncBadge } from './ConnectivityIndicator';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -215,9 +212,7 @@ function ReportsAccordion() {
 
 function Sidebar({ onClose }: SidebarProps) {
   const navigate = useNavigate();
-  const { user, logout }                  = useAuthStore();
-  const { theme, toggle: toggleTheme }    = useThemeStore();
-  const { relayConnected, pendingPushes } = useSyncStatus();
+  const { user, logout } = useAuthStore();
   const { storeName } = useStoreInfo();
   const update = useUpdate();
 
@@ -285,61 +280,42 @@ function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       {/* ── Bottom controls ── */}
-      <div className="border-t border-primary-foreground/15 px-3 pb-4 pt-3 space-y-0.5">
+      <div className="border-t border-primary-foreground/15 px-3 pb-4 pt-3 space-y-1">
 
-        {/* Settings */}
-        {isAdmin && (
-          <Link
-            to="/admin/settings"
-            className={cn(
-              'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150',
-              useIsActive('/admin/settings')
-                ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
-                : 'text-primary-foreground/70 hover:bg-primary-foreground/8 hover:text-primary-foreground',
-            )}
-          >
-            <Settings className="size-4 shrink-0" />
-            <span>Settings</span>
-          </Link>
-        )}
+        {/* Sync badge */}
+        <SyncBadge />
+
+        {/* Settings — both admin and sales users */}
+        <Link
+          to="/settings"
+          className={cn(
+            'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150',
+            useIsActive('/settings')
+              ? 'bg-primary-foreground/15 text-primary-foreground font-medium'
+              : 'text-primary-foreground/70 hover:bg-primary-foreground/8 hover:text-primary-foreground',
+          )}
+        >
+          <Settings className="size-4 shrink-0" />
+          <span>Settings</span>
+        </Link>
 
         {/* User card */}
         <Link
           to="/profile"
-          className="flex items-center gap-2.5 rounded-lg px-3 py-2 mt-1 transition-colors duration-150 hover:bg-primary-foreground/8"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors duration-150 hover:bg-primary-foreground/8"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15 text-[11px] font-semibold text-primary-foreground select-none">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15 text-[10px] font-semibold text-primary-foreground select-none">
             {initials(userName)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium text-primary-foreground leading-snug">
+            <p className="truncate text-[12px] font-medium text-primary-foreground leading-snug">
               {userName}
             </p>
-            <p className="text-[10px] text-primary-foreground/60 leading-snug">
+            <p className="text-[9px] text-primary-foreground/60 leading-snug">
               {isAdmin ? 'Administrator' : 'Sales Rep'}
             </p>
           </div>
-          <div
-            title={relayConnected
-              ? 'Connected'
-              : `Offline${pendingPushes > 0 ? ` · ${pendingPushes} pending` : ''}`
-            }
-            className={cn(
-              'size-2 shrink-0 rounded-full transition-colors duration-300',
-              relayConnected ? 'bg-accent' : 'bg-primary-foreground/30',
-            )}
-          />
         </Link>
-
-        <button
-          onClick={toggleTheme}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-primary-foreground/70 transition-colors duration-150 hover:bg-primary-foreground/8 hover:text-primary-foreground"
-        >
-          {theme === 'dark'
-            ? <Sun  className="size-4 shrink-0" />
-            : <Moon className="size-4 shrink-0" />}
-          <span>{theme === 'dark' ? 'Light' : 'Dark'} mode</span>
-        </button>
 
         <button
           onClick={handleLogout}

@@ -1,98 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
-import { WifiOff, RefreshCw, CloudOff, Wifi, X } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type BannerState = 'hidden' | 'offline' | 'syncing' | 'pending' | 'backup_offline';
-
-const OFFLINE_DISMISS_MS = 10_000;
-
-export function ConnectivityIndicator() {
-  const [online, setOnline] = useState(navigator.onLine);
-  const [dismissedOffline, setDismissedOffline] = useState(false);
-  const { pendingPushes, isSyncing, forceSync } = useSyncStatus();
-
-  useEffect(() => {
-    if (!online) {
-      const timer = setTimeout(() => setDismissedOffline(true), OFFLINE_DISMISS_MS);
-      return () => clearTimeout(timer);
-    }
-  }, [online]);
-
-  useEffect(() => {
-    if (online) {
-      setDismissedOffline(false);
-    }
-  }, [online]);
-
-  useEffect(() => {
-    const goOnline = () => setOnline(true);
-    const goOffline = () => setOnline(false);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
-  const bannerState: BannerState =
-    !online && !dismissedOffline ? 'offline' :
-    isSyncing ? 'syncing' :
-    pendingPushes > 0 ? 'pending' :
-    'hidden';
-
-  const isVisible = bannerState !== 'hidden';
+export function SyncBadge() {
+  const { relayConnected, pendingPushes, isSyncing, forceSync } = useSyncStatus();
 
   return (
-    <div className={isVisible ? 'h-7' : 'h-0 overflow-hidden'}>
-      {isVisible && (
-        <div
-          className={cn(
-            'fixed top-0 left-0 right-0 z-50 flex items-center gap-2 px-4 h-7 text-[11px] font-medium transition-colors duration-300',
-            bannerState === 'offline' && 'bg-destructive text-destructive-foreground',
-            bannerState === 'syncing' && 'bg-primary/10 text-primary',
-            bannerState === 'pending' && 'bg-warning text-warning-foreground',
-          )}
-        >
-          {bannerState === 'offline' && (
-            <>
-              <CloudOff className="size-3.5 shrink-0" />
-              <span className="truncate">
-                You're offline — data saved locally. Connect to the internet to sync and backup.
-              </span>
-              <button
-                onClick={() => setDismissedOffline(true)}
-                className="ml-auto shrink-0 p-0.5 rounded hover:bg-destructive/20 transition-colors"
-                aria-label="Dismiss offline banner"
-              >
-                <X className="size-3.5" />
-              </button>
-            </>
-          )}
-
-          {bannerState === 'syncing' && (
-            <>
-              <RefreshCw className="size-3.5 shrink-0 animate-spin" />
-              <span>Syncing data...</span>
-            </>
-          )}
-
-          {bannerState === 'pending' && (
-            <>
-              <Wifi className="size-3.5 shrink-0" />
-              <span className="truncate">
-                {pendingPushes} change{pendingPushes !== 1 ? 's' : ''} pending sync
-              </span>
-              <button
-                onClick={() => forceSync()}
-                className="ml-auto shrink-0 underline underline-offset-2 hover:no-underline"
-              >
-                Sync now
-              </button>
-            </>
-          )}
+    <div className="rounded-lg bg-primary-foreground/8 px-3 py-2 space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={cn(
+              'size-2 shrink-0 rounded-full transition-colors duration-300',
+              relayConnected ? 'bg-accent' : 'bg-primary-foreground/30',
+            )}
+          />
+          <span className="text-[12px] text-primary-foreground/70 font-medium truncate">
+            {relayConnected ? 'Connected' : 'Offline'}
+          </span>
         </div>
+        <button
+          onClick={forceSync}
+          disabled={isSyncing}
+          className="flex size-5 items-center justify-center rounded text-primary-foreground/50 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-colors disabled:opacity-50"
+          title="Sync now"
+        >
+          {isSyncing ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3" />
+          )}
+        </button>
+      </div>
+      {pendingPushes > 0 && (
+        <p className="text-[10px] text-primary-foreground/50 leading-tight">
+          {pendingPushes} change{pendingPushes !== 1 ? 's' : ''} pending
+        </p>
       )}
     </div>
   );

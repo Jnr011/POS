@@ -12,7 +12,7 @@ import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User, RotateCcw, Printer, Eye } from 'lucide-react';
+import { Search, Receipt, Banknote, CreditCard, Smartphone, ChevronDown, ChevronRight, User, RotateCcw, Printer, Usb, Eye } from 'lucide-react';
 import type { Sale, User as UserType, CartItem } from '../types';
 import { formatCurrency } from '../lib/currency';
 import { format } from 'date-fns';
@@ -123,6 +123,42 @@ function SalesHistory() {
         icon={<Receipt className="size-4 text-primary" />}
         title="Sales History"
         description={`${filtered.length} sale${filtered.length !== 1 ? 's' : ''} recorded`}
+        actions={
+          printer.status.connected ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 rounded-lg bg-primary/10 text-primary px-2.5 py-1.5 text-sm">
+                <span className="size-2 rounded-full bg-accent animate-pulse" />
+                <Printer className="size-3.5" />
+                <span className="font-medium text-xs">{printer.status.deviceName}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={printer.switchPrinter}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                Switch
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => printer.disconnect()}
+                className="gap-1.5 text-muted-foreground hover:text-destructive"
+              >
+                Disconnect
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => printer.connect()}
+              className="gap-2"
+            >
+              <Usb className="size-4" /> Connect Printer
+            </Button>
+          )
+        }
       />
 
       <div data-tour="sales-search" className="flex flex-col sm:flex-row gap-3">

@@ -14,6 +14,8 @@ function getDeviceToken(): string | null {
 
 type StatusListener = (status: SyncStatus) => void;
 
+const SYNC_TABLES = ['products', 'sales', 'users', 'returns'] as const;
+
 class SyncService {
   private intervalTimer: ReturnType<typeof setInterval> | null = null;
   private _isSyncing = false;
@@ -189,6 +191,9 @@ class SyncService {
     }
   }
 
+  get online() { return this._online; }
+  get relayConnected() { return this._relayConnected; }
+
   private async updatePendingCount() {
     this._pendingPushes = await db.syncQueue.count();
   }
@@ -216,7 +221,38 @@ class SyncService {
     }
   }
 
+  // Deduplicate the sync queue: for each (table, recordId) keep only the latest entry
+  private async deduplicateQueue(): Promise<void> {
+    const all = await db.syncQueue.orderBy('timestamp').toArray();
+    if (all.length < 2) return;
+
+    const latest = new Map<string, typeof all[0]>();
+    const toDelete: number[] = [];
+
+    for (const item of all) {
+      const key = `${item.table}:${item.recordId}`;
+      const existing = latest.get(key);
+      if (existing) {
+        // Keep the newer one
+        if (item.timestamp > existing.timestamp) {
+          toDelete.push(existing.id!);
+          latest.set(key, item);
+        } else {
+          toDelete.push(item.id!);
+        }
+      } else {
+        latest.set(key, item);
+      }
+    }
+
+    for (const id of toDelete) {
+      try { await db.syncQueue.delete(id); } catch { /* ignore */ }
+    }
+  }
+
   private async push(): Promise<number> {
+    await this.deduplicateQueue();
+
     let total = 0;
     while (true) {
       const queue = await db.syncQueue
@@ -228,7 +264,7 @@ class SyncService {
 
       const batch: SyncBatchItem[] = queue.map(item => ({
         table: item.table as SyncBatchItem['table'],
-        action: item.action,
+        action: item.action as SyncBatchItem['action'],
         recordId: item.recordId,
         data: item.data,
         deviceId: item.deviceId || getDeviceId(),
@@ -324,22 +360,41 @@ class SyncService {
       const timestamp = data.serverTimestamp;
       let count = 0;
 
-      for (const table of ['products', 'sales', 'users'] as const) {
+      // Apply changes from server
+      for (const table of SYNC_TABLES) {
         const changes = data.changes[table] || [];
         for (const record of changes) {
           const id = record.id as number;
           const existing = await (db[table] as any).get(id);
           const recordUpdatedAt = record.updatedAt as number;
+
           if (!existing || recordUpdatedAt > existing.updatedAt) {
             await (db[table] as any).put({ ...record, syncedAt: timestamp });
             count++;
+          } else if (existing && existing.syncStatus === 'pending' && !recordUpdatedAt) {
+            // Conflict: local has un-synced changes, server has no update
+            await (db[table] as any).update(id, { syncStatus: 'conflict' });
           }
         }
+
         await db.syncMeta.put({
           tableName: table,
           lastSyncedAt: timestamp,
           lastSyncStatus: 'success',
         });
+      }
+
+      // Handle soft deletes from server
+      if (data.deletes) {
+        for (const table of SYNC_TABLES) {
+          const deletions = data.deletes[table] as { id: number }[] | undefined;
+          if (!deletions) continue;
+          for (const del of deletions) {
+            try {
+              await (db[table] as any).delete(del.id);
+            } catch { /* may not exist locally */ }
+          }
+        }
       }
 
       this._lastSyncedAt = timestamp;
@@ -349,6 +404,7 @@ class SyncService {
       return count;
     } catch (err) {
       this._lastError = err instanceof Error ? err.message : 'Pull failed';
+      this._relayConnected = false;
       this.notify();
       return 0;
     }

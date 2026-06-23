@@ -159,28 +159,32 @@ class TauriPrinterService {
 
     const withFlags = this.flagPrinters(printers);
 
-    const target = printerName || this.getSavedPrinterName();
-    let chosen = target ? withFlags.find(p => p.name === target) : undefined;
-
-    if (!chosen) {
-      const real = withFlags.filter(p => !p.likelyVirtual);
-      if (real.length === 1) {
-        chosen = real[0];
-      } else if (real.length === 0 && withFlags.length === 1) {
-        chosen = withFlags[0];
-      } else {
-        throw new PrinterSelectionRequiredError(withFlags);
-      }
+    // Name explicitly provided — find and connect to it
+    if (printerName) {
+      const chosen = withFlags.find(p => p.name === printerName);
+      if (!chosen) throw new Error(`Printer "${printerName}" not found`);
+      this.connectedPrinter = chosen.name;
+      this.setSavedPrinterName(chosen.name);
+      this.notify();
+      return chosen.name;
     }
 
-    this.connectedPrinter = chosen.name;
-    this.setSavedPrinterName(chosen.name);
-    this.notify();
-    return chosen.name;
+    // No name given — auto-select only if exactly one real printer exists
+    const real = withFlags.filter(p => !p.likelyVirtual);
+    if (real.length === 1) {
+      this.connectedPrinter = real[0].name;
+      this.setSavedPrinterName(real[0].name);
+      this.notify();
+      return real[0].name;
+    }
+
+    // Multiple or none — show selection dialog
+    throw new PrinterSelectionRequiredError(withFlags);
   }
 
   async disconnect(): Promise<void> {
     this.connectedPrinter = null;
+    this.clearSavedPrinterName();
     this.notify();
   }
 

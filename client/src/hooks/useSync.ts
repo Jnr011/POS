@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { syncService } from '../services/syncService';
+import { autoBackupService } from '../services/autoBackupService';
 
 export function useSync() {
   const initialized = useRef(false);
@@ -10,11 +11,13 @@ export function useSync() {
 
     const timer = setTimeout(() => {
       syncService.initialize();
+      autoBackupService.start();
     }, 2000);
 
     return () => {
       clearTimeout(timer);
       syncService.destroy();
+      autoBackupService.stop();
     };
   }, []);
 }

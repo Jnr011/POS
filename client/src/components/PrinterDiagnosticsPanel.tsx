@@ -53,7 +53,7 @@ export function PrinterDiagnosticsPanel() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2 max-h-[400px] overflow-y-auto">
                 {diagnostics.printers.map((p) => (
                   <li key={p.identifier} className="flex items-center justify-between rounded-md border p-2">
                     <div>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESC/POS Receipt Emulator</title>
+<style>
+  body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
+  .emulator { background: #16213e; padding: 30px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .receipt { background: #fff; width: 384px; padding: 24px 20px; font-family: 'Courier New', 'Consolas', monospace; font-size: 13px; line-height: 1.35; color: #000; border-radius: 4px; margin-bottom: 16px; }
+  .ruler { display: flex; font-family: 'Courier New', monospace; font-size: 10px; color: #888; margin-bottom: 4px; user-select: none; }
+  .ruler span { flex: 0 0 48px; text-align: center; }
+  .controls { display: flex; gap: 8px; }
+  .controls button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .controls button.preview { background: #0f3460; color: #fff; }
+  .controls button.copy { background: #1a6b3c; color: #fff; }
+  .controls button.clear { background: #6b1a1a; color: #fff; }
+  .status { color: #a8b2d1; font-size: 12px; margin-top: 12px; text-align: center; }
+  .line { white-space: pre; }
+  .line.double { font-size: 22px; font-weight: bold; }
+  .line.center { text-align: center; }
+  .line.right { text-align: right; }
+  .line.bold { font-weight: bold; }
+  .line.dash { border-bottom: 1px dashed #ccc; margin: 4px 0; }
+  .ruler-markers { display: flex; font-family: 'Courier New', monospace; font-size: 9px; color: #556; margin-top: 2px; user-select: none; }
+  .ruler-markers div { flex: 0 0 48px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="emulator">
+  <div class="ruler" id="ruler"></div>
+  <div class="receipt" id="receipt"></div>
+  <div class="ruler-markers" id="markers"></div>
+  <div class="controls">
+    <button class="preview" onclick="render()">Refresh Preview</button>
+    <button class="copy" onclick="copyText()">Copy as Text</button>
+    <button class="clear" onclick="document.getElementById('rawInput').value=''; render()">Clear</button>
+  </div>
+  <div class="status" id="status">✓ All lines within 48-char width</div>
+</div>
+
+<script>
+const CURRENCY = 'GHS';
+const fmt = (amount) => `${CURRENCY} ${amount.toFixed(2)}`;
+const W = 48;
+const COL_NAME = 26;
+const COL_QTY = 6;
+const COL_TOTAL = 16;
+
+function padLine(left, right) {
+  const gap = W - left.length - right.length;
+  if (gap >= 1) return left + ' '.repeat(gap) + right;
+  return left.slice(0, Math.max(0, W - right.length - 1)) + ' ' + right;
+}
+
+const repeat = (c, n) => c.repeat(n);
+const center = (t, w) => { const p = Math.max(0, w - t.length); return ' '.repeat(Math.floor(p/2)) + t + ' '.repeat(p - Math.floor(p/2)); };
+
+function buildMockSale() {
+  return {
+    id: 1234, user_id: 1,
+    items: [
+      { name: 'Paracetamol 500mg', price: 5.00, quantity: 2 },
+      { name: 'Amoxicillin 250mg', price: 12.50, quantity: 1 },
+      { name: 'Vitamin C 1000mg', price: 8.75, quantity: 3 },
+      { name: 'Ibuprofen 400mg', price: 7.50, quantity: 2 },
+    ],
+    total_price: 60.00, tax: 7.50, grand_total: 67.50,
+    payment_method: 'cash', amount_tendered: 100.00, change_due: 32.50,
+    date: new Date().toISOString(),
+  };
+}
+
+function buildReceiptLines(sale) {
+  const storeName = 'Pharmacy POS';
+  const storeAddress = '123 Main Street, Accra';
+  const storePhone = '+233 55 123 4567';
+  const footer = 'Thank you for your purchase!';
+  const method = sale.payment_method === 'cash' ? 'Cash' : sale.payment_method === 'card' ? 'Card' : 'Mobile Money';
+
+  const L = [];
+  L.push({ text: '' });
+  L.push({ text: center(storeName, W) });
+  L.push({ text: center(storeAddress, W) });
+  L.push({ text: center(storePhone, W) });
+  L.push({ text: repeat('=', W) });
+  L.push({ text: `Receipt #: ${sale.id}` });
+  L.push({ text: `Date: ${new Date(sale.date).toLocaleString()}` });
+  L.push({ text: `Cashier ID: ${sale.user_id}` });
+  L.push({ text: '' });
+  L.push({ text: repeat('-', W) });
+  // Table header
+  L.push({ text: 'Item'.padEnd(COL_NAME) + 'Qty'.padStart(COL_QTY) + 'Total'.padStart(COL_TOTAL) });
+  // Items
+  for (const item of sale.items) {
+    const name = item.name.substring(0, COL_NAME);
+    const qty = String(item.quantity).padStart(COL_QTY);
+    const total = fmt(item.price * item.quantity).padStart(COL_TOTAL);
+    L.push({ text: name + qty + total });
+  }
+  L.push({ text: repeat('-', W) });
+  L.push({ text: padLine('Subtotal:', fmt(sale.total_price)) });
+  L.push({ text: padLine('Tax:', fmt(sale.tax)) });
+  L.push({ text: '' });
+  L.push({ text: center(`  ${fmt(sale.grand_total)}`, W), double: true });
+  L.push({ text: '' });
+  L.push({ text: `Payment: ${method}`, bold: true });
+  L.push({ text: padLine('Tendered:', fmt(sale.amount_tendered)) });
+  L.push({ text: padLine('Change:', fmt(sale.change_due)) });
+  L.push({ text: '' });
+  L.push({ text: repeat('=', W) });
+  L.push({ text: center(storeName, W), bold: true });
+  L.push({ text: center(storeAddress, W) });
+  L.push({ text: center(storePhone, W) });
+  L.push({ text: center(footer, W) });
+  L.push({ text: '' });
+  return L;
+}
+
+function render() {
+  const sale = buildMockSale();
+  const lines = buildReceiptLines(sale);
+  const receiptEl = document.getElementById('receipt');
+  const statusEl = document.getElementById('status');
+  
+  let html = '';
+  let overflow = false;
+  let maxLen = 0;
+
+  for (const line of lines) {
+    const classes = ['line'];
+    if (line.double) classes.push('double');
+    if (line.bold && !line.double) classes.push('bold');
+    
+    let text = line.text;
+    // Pad to exactly W for visual alignment
+    if (text.length > W) {
+      overflow = true;
+      text = text.substring(0, W - 3) + '>>>';
+    }
+    if (text.length > maxLen) maxLen = text.length;
+    
+    // Show overflow marker
+    const display = text.padEnd(W);
+    html += `<div class="${classes.join(' ')}">${escapeHtml(display)}</div>`;
+  }
+
+  receiptEl.innerHTML = html;
+
+  if (overflow) {
+    statusEl.textContent = `⚠ WARNING: Some lines exceed ${W}-char width! (max seen: ${maxLen})`;
+    statusEl.style.color = '#ff6666';
+  } else {
+    statusEl.textContent = `✓ All ${lines.length} lines fit within ${W} characters. Max width used: ${maxLen}`;
+    statusEl.style.color = '#66ff66';
+  }
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function copyText() {
+  const sale = buildMockSale();
+  const lines = buildReceiptLines(sale);
+  let text = '';
+  for (const line of lines) {
+    text += line.text.padEnd(W) + '\n';
+  }
+  text += '\n─'.repeat(20) + '\n';
+  text += `All ${lines.length} lines, width=${W}\n`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('status').textContent = '✓ Copied to clipboard!';
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    document.getElementById('status').textContent = '✓ Copied to clipboard!';
+  });
+}
+
+// Build ruler
+(function() {
+  const ruler = document.getElementById('ruler');
+  const markers = document.getElementById('markers');
+  for (let i = 0; i < W; i++) {
+    const s = document.createElement('span');
+    s.textContent = i % 10 === 0 ? String(i / 10) : '·';
+    ruler.appendChild(s);
+  }
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement('div');
+    d.textContent = '0'.repeat(10);
+    d.style.color = ['#665', '#556', '#455', '#545', '#554'][i % 5];
+    markers.appendChild(d);
+  }
+})();
+
+render();
+</script>
+</body>
+</html>

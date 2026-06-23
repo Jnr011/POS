@@ -1,10 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { StoreRepository } from '../../db/repository';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
+import { buildReceiptElements, type ReceiptStoreInfo } from '../../lib/receiptBuilder';
+import { ReceiptPreview } from '../ReceiptPreview';
+import type { Sale, CartItem } from '../../types';
 import { Save, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
+
+const DUMMY_ITEMS: CartItem[] = [
+  { id: 1, name: 'Paracetamol 500mg', category: 'Pain Relief', price: 5.00, stock_quantity: 100, quantity: 2 },
+  { id: 2, name: 'Amoxicillin 250mg', category: 'Antibiotics', price: 12.50, stock_quantity: 50, quantity: 1 },
+  { id: 3, name: 'Vitamin C 1000mg', category: 'Supplements', price: 8.00, stock_quantity: 75, quantity: 3 },
+];
+
+function buildDummySale(storeValues: Record<string, string>): Sale {
+  const total = DUMMY_ITEMS.reduce((s, i) => s + i.price * i.quantity, 0);
+  const tax = parseFloat((total * 0.03).toFixed(2));
+  return {
+    id: 42,
+    user_id: 1,
+    items: DUMMY_ITEMS,
+    total_price: total,
+    tax,
+    grand_total: total + tax,
+    payment_method: 'cash',
+    amount_tendered: 60,
+    change_due: parseFloat((60 - total - tax).toFixed(2)),
+    date: new Date().toISOString(),
+    updatedAt: Date.now(),
+    syncStatus: 'synced',
+    status: 'completed',
+  };
+}
 
 export function ReceiptSettings() {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -36,6 +65,18 @@ export function ReceiptSettings() {
       setSaving(false);
     }
   };
+
+  const previewElements = useMemo(() => {
+    const storeInfo: ReceiptStoreInfo = {
+      storeName: values.storeName || 'Pharmacy POS',
+      storeAddress: values.storeAddress || '123 Main Street',
+      storePhone: values.storePhone || '024 000 0000',
+      receiptHeader: values.receiptHeader || '',
+      receiptFooter: values.receiptFooter || 'Thank you for your purchase!',
+    };
+    const sale = buildDummySale(values);
+    return buildReceiptElements(sale, storeInfo);
+  }, [values]);
 
   if (loading) {
     return (
@@ -97,22 +138,11 @@ export function ReceiptSettings() {
           />
         </div>
 
-        {/* Preview */}
+        {/* Preview — uses receipt builder */}
         <div className="rounded-lg border border-border bg-muted/30 p-4">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Preview</p>
-          <div className="rounded-md bg-white border border-border p-5 text-center font-mono text-xs text-black space-y-1 max-w-[260px] mx-auto shadow-sm">
-            <p className="font-bold text-[13px]">{values.storeName || 'Store Name'}</p>
-            <p className="text-[10px] text-gray-500">{values.storeAddress || 'Address'}</p>
-            <p className="text-[10px] text-gray-500">Tel: {values.storePhone || 'Phone'}</p>
-            {values.receiptHeader && (
-              <p className="pt-2 border-t border-dashed text-[10px] text-gray-700 whitespace-pre-wrap">{values.receiptHeader}</p>
-            )}
-            <div className="pt-2 border-t border-dashed">
-              <p className="text-[10px] text-gray-400 italic">sale items appear here</p>
-            </div>
-            {values.receiptFooter && (
-              <p className="pt-2 border-t border-dashed text-[10px] text-gray-700 whitespace-pre-wrap">{values.receiptFooter}</p>
-            )}
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview</p>
+          <div className="max-w-[300px] mx-auto rounded-md border border-border overflow-hidden shadow-sm">
+            <ReceiptPreview elements={previewElements} />
           </div>
         </div>
       </div>

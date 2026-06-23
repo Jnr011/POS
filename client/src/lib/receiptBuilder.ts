@@ -17,13 +17,27 @@ export interface ReceiptStoreInfo {
   receiptFooter?: string;
 }
 
+const CURRENCY = 'GHS';
+
+function fmt(amount: number): string {
+  return `${CURRENCY} ${amount.toFixed(2)}`;
+}
+
+const W = 48;
 const COL_NAME = 26;
 const COL_QTY = 6;
 const COL_TOTAL = 16;
 
-export function buildReceiptElements(sale: Sale, storeInfo?: ReceiptStoreInfo): ReceiptElement[] {
-  const W = COL_NAME + COL_QTY + COL_TOTAL;
+function padLine(left: string, right: string): string {
+  const gap = W - left.length - right.length;
+  if (gap >= 1) {
+    return left + ' '.repeat(gap) + right;
+  }
+  const maxLeft = W - right.length - 1;
+  return left.slice(0, Math.max(0, maxLeft)) + ' ' + right;
+}
 
+export function buildReceiptElements(sale: Sale, storeInfo?: ReceiptStoreInfo): ReceiptElement[] {
   const storeName = storeInfo?.storeName || 'Pharmacy POS';
   const storeAddress = storeInfo?.storeAddress || '';
   const storePhone = storeInfo?.storePhone || '';
@@ -40,7 +54,7 @@ export function buildReceiptElements(sale: Sale, storeInfo?: ReceiptStoreInfo): 
   const saleBody = (sale.items || []).map((item) => [
     { text: item.name.substring(0, COL_NAME) },
     { text: String(item.quantity).padStart(COL_QTY) },
-    { text: `₵${(item.price * item.quantity).toFixed(2)}`.padStart(COL_TOTAL) },
+    { text: fmt(item.price * item.quantity).padStart(COL_TOTAL) },
   ]);
 
   const elements: ReceiptElement[] = [
@@ -56,18 +70,19 @@ export function buildReceiptElements(sale: Sale, storeInfo?: ReceiptStoreInfo): 
 
     ...(receiptHeader ? [{ type: 'text' as const, text: receiptHeader, align: 'center' as const }] : []),
 
-    { type: 'table', rows: saleBody, header: [{ text: 'Item' }, { text: 'Qty' }, { text: 'Total' }], columnWidths: [COL_NAME, COL_QTY, COL_TOTAL] },
+    { type: 'text', text: 'Item'.padEnd(COL_NAME) + 'Qty'.padStart(COL_QTY) + 'Total'.padStart(COL_TOTAL) },
+    { type: 'table', rows: saleBody, columnWidths: [COL_NAME, COL_QTY, COL_TOTAL] },
     { type: 'line', char: '-' },
 
-    { type: 'text', text: `Subtotal:${''.padStart(W - 9 - sale.total_price.toFixed(2).length)}₵${sale.total_price.toFixed(2)}`, align: 'right' },
-    { type: 'text', text: `Tax:${''.padStart(W - 4 - sale.tax.toFixed(2).length)}₵${sale.tax.toFixed(2)}`, align: 'right' },
+    { type: 'text', text: padLine('Subtotal:', fmt(sale.total_price)) },
+    { type: 'text', text: padLine('Tax:', fmt(sale.tax)) },
     { type: 'text', text: '' },
-    { type: 'text', text: `TOTAL:  ₵${sale.grand_total.toFixed(2)}`, align: 'right', bold: true, size: 'double' },
+    { type: 'text', text: `  ${fmt(sale.grand_total)}`, align: 'center', bold: true, size: 'double' },
     { type: 'text', text: '' },
 
     { type: 'text', text: `Payment: ${paymentMethod}`, bold: true },
-    { type: 'text', text: `Tendered: ₵${sale.amount_tendered.toFixed(2)}` },
-    { type: 'text', text: `Change:   ₵${sale.change_due.toFixed(2)}` },
+    { type: 'text', text: padLine('Tendered:', fmt(sale.amount_tendered)) },
+    { type: 'text', text: padLine('Change:', fmt(sale.change_due)) },
     { type: 'text', text: '' },
 
     { type: 'line', char: '=' },

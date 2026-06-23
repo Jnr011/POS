@@ -50,6 +50,26 @@ const Product = sequelize.define('Product', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    sourceDevice: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    syncedToCloud: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    syncedToDevice: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    deletedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    receivedAt: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
 }, {
     timestamps: false,
 });

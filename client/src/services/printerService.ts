@@ -200,33 +200,34 @@ class PrinterService {
     for (const item of sale.items || []) {
       const name = item.name.substring(0, 26).padEnd(26);
       const qty = String(item.quantity).padStart(6);
-      const total = `₵${(item.price * item.quantity).toFixed(2)}`.padStart(16);
+      const total = `GHS ${(item.price * item.quantity).toFixed(2)}`.padStart(16);
       lines.push(this.encode(name + qty + total));
     }
 
     lines.push(this.encode('─'.repeat(W)));
 
     // Totals
-    const subStr = `₵${sale.total_price.toFixed(2)}`;
-    const taxStr = `₵${sale.tax.toFixed(2)}`;
-    const totalStr = `₵${sale.grand_total.toFixed(2)}`;
+    const subStr = `GHS ${sale.total_price.toFixed(2)}`;
+    const taxStr = `GHS ${sale.tax.toFixed(2)}`;
 
     lines.push(this.encode(`Subtotal:`.padEnd(W - subStr.length) + subStr));
     lines.push(this.encode(`Tax:`.padEnd(W - taxStr.length) + taxStr));
 
-    // Bold + double height for total
+    // Bold + double height for total (short centered)
+    lines.push(new Uint8Array([ESC, 0x61, 0x01]));
     lines.push(new Uint8Array([ESC, 0x45, 0x01]));
     lines.push(new Uint8Array([ESC, 0x21, 0x10]));
-    lines.push(this.encode(`TOTAL:`.padEnd(W - totalStr.length) + totalStr));
+    lines.push(this.encode(`  GHS ${sale.grand_total.toFixed(2)}`));
     lines.push(new Uint8Array([ESC, 0x21, 0x00]));
     lines.push(new Uint8Array([ESC, 0x45, 0x00]));
+    lines.push(new Uint8Array([ESC, 0x61, 0x00]));
 
     lines.push(this.encode(''));
 
     // Payment info
     const method = sale.payment_method === 'cash' ? 'Cash' : sale.payment_method === 'card' ? 'Card' : 'Mobile Money';
-    const tenderedStr = `₵${sale.amount_tendered.toFixed(2)}`;
-    const changeStr = `₵${sale.change_due.toFixed(2)}`;
+    const tenderedStr = `GHS ${sale.amount_tendered.toFixed(2)}`;
+    const changeStr = `GHS ${sale.change_due.toFixed(2)}`;
 
     lines.push(this.encode(`Payment: ${method}`));
     lines.push(this.encode(`Tendered:`.padEnd(W - tenderedStr.length) + tenderedStr));
